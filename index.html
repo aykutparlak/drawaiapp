@@ -377,12 +377,331 @@
   @media (max-width: 860px){
     .editor-pane{ width:85vw; border-right:none; box-shadow:6px 0 24px rgba(20,30,50,0.25); }
   }
+
+  /* ---------- side menu ---------- */
+  .menu-toggle{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    width:34px;
+    height:34px;
+    border-radius:6px;
+    border:1px solid var(--line-soft);
+    background:var(--panel);
+    cursor:pointer;
+    flex-shrink:0;
+    transition:all .12s ease;
+  }
+  .menu-toggle:hover{ border-color:var(--amber-dim); background:var(--panel-raised); }
+  .menu-toggle svg{ display:block; }
+  .menu-toggle .icon-close{ display:none; }
+  .menu-toggle.open .icon-menu{ display:none; }
+  .menu-toggle.open .icon-close{ display:block; }
+
+  .side-menu-overlay{
+    position:fixed;
+    inset:0;
+    background:rgba(20,30,50,0.28);
+    opacity:0;
+    pointer-events:none;
+    transition:opacity .18s ease;
+    z-index:29;
+  }
+  .side-menu-overlay.open{ opacity:1; pointer-events:auto; }
+
+  .side-menu{
+    position:fixed;
+    top:0;
+    bottom:0;
+    left:0;
+    width:250px;
+    max-width:82vw;
+    background:var(--panel-raised);
+    border-right:1px solid var(--grid-line);
+    box-shadow:8px 0 30px rgba(20,30,50,0.22);
+    z-index:30;
+    display:flex;
+    flex-direction:column;
+    transform:translateX(-100%);
+    transition:transform .18s ease;
+  }
+  .side-menu.open{ transform:translateX(0); }
+
+  .side-menu-head{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:14px 16px;
+    border-bottom:1px solid var(--grid-line);
+  }
+  .side-menu-head .title{
+    font-family:var(--sans);
+    font-weight:700;
+    font-size:14px;
+    letter-spacing:0.2px;
+  }
+  .side-menu-close{
+    width:26px;
+    height:26px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    border-radius:5px;
+    border:none;
+    background:transparent;
+    color:var(--ink-muted);
+    cursor:pointer;
+  }
+  .side-menu-close:hover{ color:var(--ink); background:var(--panel); }
+
+  .side-menu-body{
+    flex:1;
+    overflow-y:auto;
+    padding:10px 0 16px;
+  }
+
+  .side-menu-section{
+    padding:12px 16px 6px;
+    font-family:var(--mono);
+    font-size:10.5px;
+    letter-spacing:1px;
+    text-transform:uppercase;
+    color:var(--ink-faint);
+  }
+
+  .side-menu-item{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    width:100%;
+    padding:9px 16px;
+    background:transparent;
+    border:none;
+    text-align:left;
+    font-family:var(--sans);
+    font-size:13px;
+    color:var(--ink);
+    cursor:pointer;
+    transition:background .1s ease;
+  }
+  .side-menu-item:hover{ background:var(--panel); }
+  .side-menu-item svg{ flex-shrink:0; color:var(--ink-muted); }
+  .side-menu-item:hover svg{ color:var(--amber); }
+  .side-menu-item.active{ background:var(--panel); }
+  .side-menu-item.active svg{ color:var(--amber); }
+
+  .side-menu-divider{
+    height:1px;
+    background:var(--grid-line);
+    margin:8px 16px;
+  }
+
+  /* ---------- saved drawings tree ---------- */
+  .tree-toolbar{
+    display:flex;
+    gap:6px;
+    padding:2px 16px 10px;
+  }
+  .tree-toolbar-btn{
+    flex:1;
+    font-family:var(--mono);
+    font-size:11px;
+    color:var(--ink-muted);
+    background:var(--panel);
+    border:1px solid var(--line-soft);
+    padding:6px 8px;
+    border-radius:5px;
+    cursor:pointer;
+    text-align:center;
+    white-space:nowrap;
+    transition:all .12s ease;
+  }
+  .tree-toolbar-btn:hover{ color:var(--ink); border-color:var(--amber-dim); background:var(--panel-raised); }
+
+  .current-file-bar{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:8px;
+    margin:0 16px 10px;
+    padding:7px 10px;
+    background:rgba(47,111,237,0.07);
+    border:1px solid var(--amber-dim);
+    border-radius:6px;
+  }
+  .current-file-bar .cf-name{
+    font-family:var(--mono);
+    font-size:11.5px;
+    color:var(--ink);
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+  }
+  .current-file-bar .cf-saved{
+    font-family:var(--mono);
+    font-size:10.5px;
+    color:var(--ink-faint);
+    flex-shrink:0;
+  }
+
+  .drawings-tree{
+    padding:0 6px 6px;
+  }
+  .drawings-empty{
+    padding:10px 16px 4px;
+    font-family:var(--mono);
+    font-size:11.5px;
+    color:var(--ink-faint);
+    line-height:1.6;
+  }
+
+  .tree-row{
+    display:flex;
+    align-items:center;
+    gap:6px;
+    padding:6px 8px;
+    border-radius:5px;
+    cursor:pointer;
+    font-family:var(--sans);
+    font-size:12.5px;
+    color:var(--ink);
+  }
+  .tree-row:hover{ background:var(--panel); }
+  .tree-row.tree-file.active{ background:rgba(47,111,237,0.1); color:var(--amber); }
+
+  .tree-toggle, .tree-spacer{
+    width:14px;
+    height:14px;
+    flex-shrink:0;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    color:var(--ink-faint);
+    transition:transform .12s ease;
+  }
+  .tree-toggle.expanded{ transform:rotate(90deg); }
+
+  .tree-icon{
+    flex-shrink:0;
+    display:flex;
+    color:var(--ink-muted);
+  }
+  .tree-row.tree-file:hover .tree-icon,
+  .tree-row.tree-file.active .tree-icon{ color:var(--amber); }
+
+  .tree-label{
+    flex:1;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+  }
+
+  .tree-actions{
+    display:flex;
+    gap:2px;
+    opacity:0;
+    flex-shrink:0;
+    transition:opacity .1s ease;
+  }
+  .tree-row:hover .tree-actions{ opacity:1; }
+
+  .tree-action-btn{
+    width:24px;
+    height:24px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    border:none;
+    background:transparent;
+    border-radius:4px;
+    color:var(--ink-muted);
+    cursor:pointer;
+  }
+  .tree-action-btn:hover{ background:var(--panel-raised); color:var(--amber); }
+  .tree-action-btn.danger:hover{ color:var(--danger); }
 </style>
 </head>
 <body>
 <div class="app">
 
+  <div class="side-menu-overlay" id="side-menu-overlay"></div>
+  <nav class="side-menu" id="side-menu" aria-hidden="true">
+    <div class="side-menu-head">
+      <span class="title">Menu</span>
+      <button class="side-menu-close" id="side-menu-close" aria-label="Close menu">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+          <path d="M2 2L12 12M12 2L2 12" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+        </svg>
+      </button>
+    </div>
+    <div class="side-menu-body">
+      <div class="side-menu-section">My diagrams</div>
+      <div class="tree-toolbar">
+        <button class="tree-toolbar-btn" id="dr-new-folder">+ Folder</button>
+        <button class="tree-toolbar-btn" id="dr-save-current">+ Save current</button>
+      </div>
+      <div class="current-file-bar" id="current-file-bar" style="display:none;">
+        <span class="cf-name" id="current-file-name"></span>
+        <span class="cf-saved">Saved</span>
+      </div>
+      <div class="drawings-tree" id="drawings-tree"></div>
+
+      <div class="side-menu-divider"></div>
+      <div class="side-menu-section">File</div>
+      <button class="side-menu-item" id="menu-new" data-close-menu>
+        <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="M3 1.5h6l4 4V14.5H3V1.5z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M9 1.5V5.5H13" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>
+        New diagram
+      </button>
+      <button class="side-menu-item" id="menu-example" data-close-menu>
+        <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="M2 13V3.5C2 2.7 2.7 2 3.5 2H9l4.5 4.5V13c0 .8-.7 1.5-1.5 1.5h-8.5C2.7 14.5 2 13.8 2 13z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>
+        Load example
+      </button>
+      <button class="side-menu-item" id="menu-reset-layout" data-close-menu>
+        <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="M13.5 8a5.5 5.5 0 1 1-1.6-3.9" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><path d="M13.5 2.5V6H10" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Reset layout
+      </button>
+
+      <div class="side-menu-divider"></div>
+      <div class="side-menu-section">View</div>
+      <button class="side-menu-item" id="menu-toggle-script" data-close-menu>
+        <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><rect x="1.5" y="2.5" width="13" height="11" rx="1.5" stroke="currentColor" stroke-width="1.3"/><path d="M6 2.5V13.5" stroke="currentColor" stroke-width="1.3"/></svg>
+        Toggle script editor
+      </button>
+      <button class="side-menu-item" id="menu-toggle-bottom" data-close-menu>
+        <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><rect x="1.5" y="1.5" width="13" height="13" rx="1.5" stroke="currentColor" stroke-width="1.3"/><path d="M1.5 10.5H14.5" stroke="currentColor" stroke-width="1.3"/></svg>
+        Toggle bottom boxes
+      </button>
+
+      <div class="side-menu-divider"></div>
+      <div class="side-menu-section">Export</div>
+      <button class="side-menu-item" id="menu-svg" data-close-menu>
+        <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="M8 1.5V10M8 10L5 7M8 10L11 7" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><path d="M2 11.5V13c0 .55.45 1 1 1h10c.55 0 1-.45 1-1v-1.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+        Download SVG
+      </button>
+      <button class="side-menu-item" id="menu-png" data-close-menu>
+        <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="M8 1.5V10M8 10L5 7M8 10L11 7" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><path d="M2 11.5V13c0 .55.45 1 1 1h10c.55 0 1-.45 1-1v-1.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+        Download PNG
+      </button>
+
+      <div class="side-menu-divider"></div>
+      <div class="side-menu-section">Danger zone</div>
+      <button class="side-menu-item" id="menu-clear" data-close-menu>
+        <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="M3 4.5h10M6.5 4.5V3a1 1 0 0 1 1-1h1a1 1 0 0 1 1 1v1.5M4.5 4.5V13a1 1 0 0 0 1 1h5a1 1 0 0 0 1-1V4.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Clear script
+      </button>
+    </div>
+  </nav>
+
   <div class="topbar">
+    <button class="menu-toggle" id="menu-toggle" aria-label="Open menu" aria-expanded="false">
+      <svg class="icon-menu" width="18" height="18" viewBox="0 0 18 18" fill="none">
+        <path d="M2 4.5H16M2 9H16M2 13.5H16" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      </svg>
+      <svg class="icon-close" width="18" height="18" viewBox="0 0 18 18" fill="none">
+        <path d="M3.5 3.5L14.5 14.5M14.5 3.5L3.5 14.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      </svg>
+    </button>
+
     <div class="brand">
       <span class="mark">SEQ</span>
       <span class="name">Sequence</span>
@@ -513,6 +832,9 @@ note over Browser,API: session closed`;
   let confirmedSelectionEl = null; // the highlight rect shown while the block/note picker is open
   let activeBlockPicker = null; // the currently open "wrap selection" popup, if any
   let lastLifelineBounds = {top:0, bottom:0}; // y-range shared by all lifelines
+  let closeSideMenu = null; // set by the side-menu module below, so other modules can close it
+  let currentFileId = null; // id of the saved-drawing file currently loaded in the editor, if any
+  let autoSaveCurrentFile = null; // set by the saved-drawings module; called on every render to persist changes
 
   // ---------------- Parsing ----------------
 
@@ -1065,6 +1387,7 @@ note over Browser,API: session closed`;
   }
 
   function doRender(){
+    if(autoSaveCurrentFile) autoSaveCurrentFile();
     try{
       const svg = parseAndLayout(dslEl.value, parseInt(spacingEl.value, 10), showBottomEl.checked);
       holder.innerHTML = svg;
@@ -2176,6 +2499,370 @@ note over Browser,API: session closed`;
     a.click();
     URL.revokeObjectURL(url);
   });
+
+  // ---------------- side menu ----------------
+  (function(){
+    const menuToggle = document.getElementById('menu-toggle');
+    const sideMenu = document.getElementById('side-menu');
+    const overlay = document.getElementById('side-menu-overlay');
+    const closeBtn = document.getElementById('side-menu-close');
+
+    function openMenu(){
+      sideMenu.classList.add('open');
+      overlay.classList.add('open');
+      menuToggle.classList.add('open');
+      menuToggle.setAttribute('aria-expanded', 'true');
+      sideMenu.setAttribute('aria-hidden', 'false');
+    }
+    function closeMenu(){
+      sideMenu.classList.remove('open');
+      overlay.classList.remove('open');
+      menuToggle.classList.remove('open');
+      menuToggle.setAttribute('aria-expanded', 'false');
+      sideMenu.setAttribute('aria-hidden', 'true');
+    }
+    function toggleMenu(){
+      if(sideMenu.classList.contains('open')) closeMenu(); else openMenu();
+    }
+
+    closeSideMenu = closeMenu;
+
+    menuToggle.addEventListener('click', toggleMenu);
+    closeBtn.addEventListener('click', closeMenu);
+    overlay.addEventListener('click', closeMenu);
+    document.addEventListener('keydown', (e)=>{
+      if(e.key === 'Escape' && sideMenu.classList.contains('open')) closeMenu();
+    });
+
+    sideMenu.querySelectorAll('[data-close-menu]').forEach(btn=>{
+      btn.addEventListener('click', closeMenu);
+    });
+
+    // wire menu actions to existing functionality
+    document.getElementById('menu-new').addEventListener('click', ()=>{
+      document.getElementById('btn-clear').click();
+    });
+    document.getElementById('menu-example').addEventListener('click', ()=>{
+      document.getElementById('btn-sample').click();
+    });
+    document.getElementById('menu-reset-layout').addEventListener('click', ()=>{
+      document.getElementById('btn-reset-layout').click();
+    });
+    document.getElementById('menu-toggle-script').addEventListener('click', ()=>{
+      showScriptEl.checked = !showScriptEl.checked;
+      showScriptEl.dispatchEvent(new Event('change'));
+    });
+    document.getElementById('menu-toggle-bottom').addEventListener('click', ()=>{
+      showBottomEl.checked = !showBottomEl.checked;
+      showBottomEl.dispatchEvent(new Event('change'));
+    });
+    document.getElementById('menu-svg').addEventListener('click', ()=>{
+      document.getElementById('btn-svg').click();
+    });
+    document.getElementById('menu-png').addEventListener('click', ()=>{
+      document.getElementById('btn-png').click();
+    });
+    document.getElementById('menu-clear').addEventListener('click', ()=>{
+      document.getElementById('btn-clear').click();
+    });
+  })();
+
+  // ---------------- saved drawings (folders + files, persisted to localStorage) ----------------
+  (function(){
+    const STORAGE_KEY = 'sequence-app-drawings-v1';
+    const treeEl = document.getElementById('drawings-tree');
+    const newFolderBtn = document.getElementById('dr-new-folder');
+    const saveCurrentBtn = document.getElementById('dr-save-current');
+    const currentFileBar = document.getElementById('current-file-bar');
+    const currentFileName = document.getElementById('current-file-name');
+
+    let storageAvailable = true;
+    let expanded = new Set(); // folder ids currently expanded (session only)
+
+    function loadStore(){
+      try{
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if(!raw) return {folders:{}, files:{}};
+        const parsed = JSON.parse(raw);
+        return {folders: parsed.folders || {}, files: parsed.files || {}};
+      }catch(e){
+        storageAvailable = false;
+        return {folders:{}, files:{}};
+      }
+    }
+
+    function saveStore(store){
+      try{
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
+        storageAvailable = true;
+      }catch(e){
+        storageAvailable = false;
+        alert('Could not save to local storage — it may be full, disabled, or unavailable in this browser context.');
+      }
+    }
+
+    let store = loadStore();
+
+    function genId(){
+      return 'id_' + Date.now().toString(36) + Math.random().toString(36).slice(2,8);
+    }
+
+    function esc(s){
+      return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
+    function icon(name){
+      if(name === 'chevron') return '<svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M3 1.5L7.5 5L3 8.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+      if(name === 'folder') return '<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M2 4.2c0-.66.54-1.2 1.2-1.2h3.2l1.4 1.6h5c.66 0 1.2.54 1.2 1.2v6.2c0 .66-.54 1.2-1.2 1.2H3.2c-.66 0-1.2-.54-1.2-1.2V4.2z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>';
+      if(name === 'file') return '<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M4 1.8h5l3 3v8.4a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V2.8a1 1 0 0 1 1-1z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="M9 1.8V4.8H12" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>';
+      if(name === 'addfile') return '<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M4 1.8h5l3 3v8.4a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V2.8a1 1 0 0 1 1-1z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><path d="M6.5 8.5H9.5M8 7V10" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>';
+      if(name === 'addfolder') return '<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M2 4.2c0-.66.54-1.2 1.2-1.2h3.2l1.4 1.6h5c.66 0 1.2.54 1.2 1.2v6.2c0 .66-.54 1.2-1.2 1.2H3.2c-.66 0-1.2-.54-1.2-1.2V4.2z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><path d="M6 7.6H10M8 5.6V9.6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>';
+      if(name === 'rename') return '<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M11 2.2l2.8 2.8L5.4 13.4l-3.4.6.6-3.4L11 2.2z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>';
+      if(name === 'delete') return '<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 4.5h10M6.5 4.5V3a1 1 0 0 1 1-1h1a1 1 0 0 1 1 1v1.5M4.5 4.5V13a1 1 0 0 0 1 1h5a1 1 0 0 0 1-1V4.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+      return '';
+    }
+
+    function childFolders(parentId){
+      return Object.values(store.folders).filter(f=>f.parentId===parentId).sort((a,b)=>a.name.localeCompare(b.name));
+    }
+    function childFiles(parentId){
+      return Object.values(store.files).filter(f=>f.parentId===parentId).sort((a,b)=>a.name.localeCompare(b.name));
+    }
+
+    function renderTree(){
+      treeEl.innerHTML = '';
+      const rootFolders = childFolders(null);
+      const rootFiles = childFiles(null);
+      if(rootFolders.length === 0 && rootFiles.length === 0){
+        const empty = document.createElement('div');
+        empty.className = 'drawings-empty';
+        empty.textContent = storageAvailable
+          ? 'Nothing saved yet — use "+ Save current" to store this diagram, or "+ Folder" to organize.'
+          : 'Local storage is unavailable in this context, so saved diagrams will not persist. Open the downloaded file directly in a browser to enable saving.';
+        treeEl.appendChild(empty);
+        return;
+      }
+      renderLevel(null, treeEl, 0);
+    }
+
+    function renderLevel(parentId, container, depth){
+      childFolders(parentId).forEach(folder=> container.appendChild(buildFolderRow(folder, depth)));
+      childFiles(parentId).forEach(file=> container.appendChild(buildFileRow(file, depth)));
+    }
+
+    function buildFolderRow(folder, depth){
+      const wrap = document.createElement('div');
+
+      const row = document.createElement('div');
+      row.className = 'tree-row tree-folder';
+      row.style.paddingLeft = (8 + depth*16) + 'px';
+      const isOpen = expanded.has(folder.id);
+
+      row.innerHTML = `
+        <span class="tree-toggle${isOpen?' expanded':''}">${icon('chevron')}</span>
+        <span class="tree-icon">${icon('folder')}</span>
+        <span class="tree-label">${esc(folder.name)}</span>
+        <span class="tree-actions">
+          <button class="tree-action-btn" data-action="add-file" title="New file">${icon('addfile')}</button>
+          <button class="tree-action-btn" data-action="add-folder" title="New subfolder">${icon('addfolder')}</button>
+          <button class="tree-action-btn" data-action="rename" title="Rename">${icon('rename')}</button>
+          <button class="tree-action-btn danger" data-action="delete" title="Delete folder">${icon('delete')}</button>
+        </span>`;
+
+      row.addEventListener('click', (e)=>{
+        if(e.target.closest('[data-action]')) return;
+        if(expanded.has(folder.id)) expanded.delete(folder.id); else expanded.add(folder.id);
+        renderTree();
+      });
+
+      row.querySelector('[data-action="add-file"]').addEventListener('click', (e)=>{
+        e.stopPropagation();
+        createNewFile(folder.id);
+      });
+      row.querySelector('[data-action="add-folder"]').addEventListener('click', (e)=>{
+        e.stopPropagation();
+        createFolder(folder.id);
+      });
+      row.querySelector('[data-action="rename"]').addEventListener('click', (e)=>{
+        e.stopPropagation();
+        renameFolder(folder.id);
+      });
+      row.querySelector('[data-action="delete"]').addEventListener('click', (e)=>{
+        e.stopPropagation();
+        deleteFolder(folder.id);
+      });
+
+      wrap.appendChild(row);
+
+      if(isOpen){
+        const childrenContainer = document.createElement('div');
+        renderLevel(folder.id, childrenContainer, depth+1);
+        wrap.appendChild(childrenContainer);
+      }
+      return wrap;
+    }
+
+    function buildFileRow(file, depth){
+      const row = document.createElement('div');
+      row.className = 'tree-row tree-file' + (file.id === currentFileId ? ' active' : '');
+      row.style.paddingLeft = (8 + depth*16) + 'px';
+
+      row.innerHTML = `
+        <span class="tree-spacer"></span>
+        <span class="tree-icon">${icon('file')}</span>
+        <span class="tree-label">${esc(file.name)}</span>
+        <span class="tree-actions">
+          <button class="tree-action-btn" data-action="rename" title="Rename">${icon('rename')}</button>
+          <button class="tree-action-btn danger" data-action="delete" title="Delete">${icon('delete')}</button>
+        </span>`;
+
+      row.addEventListener('click', (e)=>{
+        if(e.target.closest('[data-action]')) return;
+        loadFile(file.id);
+      });
+      row.querySelector('[data-action="rename"]').addEventListener('click', (e)=>{
+        e.stopPropagation();
+        renameFile(file.id);
+      });
+      row.querySelector('[data-action="delete"]').addEventListener('click', (e)=>{
+        e.stopPropagation();
+        deleteFile(file.id);
+      });
+
+      return row;
+    }
+
+    function createFolder(parentId){
+      const name = prompt('Folder name:');
+      if(!name || !name.trim()) return;
+      const id = genId();
+      store.folders[id] = {id, name: name.trim(), parentId: parentId || null};
+      expanded.add(parentId || null);
+      saveStore(store);
+      renderTree();
+    }
+
+    function createNewFile(parentId){
+      const name = prompt('New file name:', 'Untitled diagram');
+      if(!name || !name.trim()) return;
+      const id = genId();
+      store.files[id] = {id, name: name.trim(), parentId: parentId || null, content: '', updatedAt: Date.now()};
+      if(parentId) expanded.add(parentId);
+      saveStore(store);
+      currentFileId = id;
+      dslEl.value = '';
+      render();
+      updateCurrentFileBar();
+      renderTree();
+    }
+
+    function saveCurrentAs(parentId){
+      const name = prompt('Save diagram as:', 'Untitled diagram');
+      if(!name || !name.trim()) return;
+      const id = genId();
+      store.files[id] = {id, name: name.trim(), parentId: parentId || null, content: dslEl.value, updatedAt: Date.now()};
+      if(parentId) expanded.add(parentId);
+      saveStore(store);
+      currentFileId = id;
+      updateCurrentFileBar();
+      renderTree();
+    }
+
+    function renameFolder(id){
+      const folder = store.folders[id];
+      if(!folder) return;
+      const name = prompt('Rename folder:', folder.name);
+      if(!name || !name.trim()) return;
+      folder.name = name.trim();
+      saveStore(store);
+      renderTree();
+    }
+
+    function renameFile(id){
+      const file = store.files[id];
+      if(!file) return;
+      const name = prompt('Rename diagram:', file.name);
+      if(!name || !name.trim()) return;
+      file.name = name.trim();
+      saveStore(store);
+      if(id === currentFileId) updateCurrentFileBar();
+      renderTree();
+    }
+
+    function deleteFolder(id){
+      const folder = store.folders[id];
+      if(!folder) return;
+      if(!confirm(`Delete folder "${folder.name}" and everything inside it? This can't be undone.`)) return;
+
+      let clearedCurrent = false;
+      function removeRecursive(fid){
+        childFiles(fid).forEach(f=>{
+          delete store.files[f.id];
+          if(f.id === currentFileId){ currentFileId = null; clearedCurrent = true; }
+        });
+        childFolders(fid).forEach(sub=> removeRecursive(sub.id));
+        delete store.folders[fid];
+      }
+      removeRecursive(id);
+      saveStore(store);
+      if(clearedCurrent){
+        dslEl.value = '';
+        render();
+        updateCurrentFileBar();
+      }
+      renderTree();
+    }
+
+    function deleteFile(id){
+      const file = store.files[id];
+      if(!file) return;
+      if(!confirm(`Delete "${file.name}"? This can't be undone.`)) return;
+      delete store.files[id];
+      if(id === currentFileId){
+        currentFileId = null;
+        dslEl.value = '';
+        render();
+        updateCurrentFileBar();
+      }
+      saveStore(store);
+      renderTree();
+    }
+
+    function loadFile(id){
+      const file = store.files[id];
+      if(!file) return;
+      dslEl.value = file.content;
+      currentFileId = id;
+      updateCurrentFileBar();
+      render();
+      renderTree();
+      if(closeSideMenu) closeSideMenu();
+    }
+
+    function updateCurrentFileBar(){
+      const file = currentFileId ? store.files[currentFileId] : null;
+      if(file){
+        currentFileBar.style.display = 'flex';
+        currentFileName.textContent = file.name;
+      } else {
+        currentFileBar.style.display = 'none';
+      }
+    }
+
+    newFolderBtn.addEventListener('click', ()=> createFolder(null));
+    saveCurrentBtn.addEventListener('click', ()=> saveCurrentAs(null));
+
+    autoSaveCurrentFile = function(){
+      if(!currentFileId || !store.files[currentFileId]) return;
+      if(store.files[currentFileId].content === dslEl.value) return;
+      store.files[currentFileId].content = dslEl.value;
+      store.files[currentFileId].updatedAt = Date.now();
+      saveStore(store);
+    };
+
+    renderTree();
+    updateCurrentFileBar();
+  })();
 
   document.getElementById('btn-png').addEventListener('click', ()=>{
     const svgEl = holder.querySelector('svg');
