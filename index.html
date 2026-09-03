@@ -191,6 +191,28 @@
   .main:not(.script-hidden) .editor-pane{
     transform:translateX(0);
   }
+  .editor-resize-handle{
+    position:absolute;
+    top:0;
+    right:-4px;
+    bottom:0;
+    width:8px;
+    cursor:ew-resize;
+    z-index:16;
+  }
+  .editor-resize-handle::after{
+    content:'';
+    position:absolute;
+    top:0;
+    bottom:0;
+    left:3px;
+    width:2px;
+    background:transparent;
+    transition:background .12s ease;
+  }
+  .editor-resize-handle:hover::after,
+  .editor-resize-handle.dragging::after{ background:var(--amber); }
+
   .editor-label{
     font-family:var(--mono);
     font-size:11px;
@@ -398,6 +420,23 @@
   .menu-toggle.open .icon-menu{ display:none; }
   .menu-toggle.open .icon-close{ display:block; }
 
+  .icon-toggle-btn{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    width:34px;
+    height:34px;
+    border-radius:6px;
+    border:1px solid var(--line-soft);
+    background:var(--panel);
+    color:var(--ink-muted);
+    cursor:pointer;
+    flex-shrink:0;
+    transition:all .12s ease;
+  }
+  .icon-toggle-btn:hover{ border-color:var(--amber-dim); background:var(--panel-raised); color:var(--ink); }
+  .icon-toggle-btn.active{ border-color:var(--amber); background:var(--panel-raised); color:var(--amber); }
+
   .side-menu-overlay{
     position:fixed;
     inset:0;
@@ -461,7 +500,10 @@
   }
 
   .side-menu-section{
-    padding:12px 16px 6px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:12px 10px 6px 16px;
     font-family:var(--mono);
     font-size:10.5px;
     letter-spacing:1px;
@@ -497,27 +539,6 @@
   }
 
   /* ---------- saved drawings tree ---------- */
-  .tree-toolbar{
-    display:flex;
-    gap:6px;
-    padding:2px 16px 10px;
-  }
-  .tree-toolbar-btn{
-    flex:1;
-    font-family:var(--mono);
-    font-size:11px;
-    color:var(--ink-muted);
-    background:var(--panel);
-    border:1px solid var(--line-soft);
-    padding:6px 8px;
-    border-radius:5px;
-    cursor:pointer;
-    text-align:center;
-    white-space:nowrap;
-    transition:all .12s ease;
-  }
-  .tree-toolbar-btn:hover{ color:var(--ink); border-color:var(--amber-dim); background:var(--panel-raised); }
-
   .current-file-bar{
     display:flex;
     align-items:center;
@@ -570,8 +591,8 @@
   .tree-row.tree-file.active{ background:rgba(47,111,237,0.1); color:var(--amber); }
 
   .tree-toggle, .tree-spacer{
-    width:14px;
-    height:14px;
+    width:16px;
+    height:16px;
     flex-shrink:0;
     display:flex;
     align-items:center;
@@ -596,6 +617,20 @@
     white-space:nowrap;
   }
 
+  .tree-row.tree-new{ cursor:default; }
+  .tree-new-input{
+    flex:1;
+    min-width:0;
+    font-family:var(--sans);
+    font-size:12.5px;
+    color:var(--ink);
+    background:var(--panel-raised);
+    border:1px solid var(--amber);
+    border-radius:4px;
+    padding:3px 6px;
+    outline:none;
+  }
+
   .tree-actions{
     display:flex;
     gap:2px;
@@ -606,8 +641,8 @@
   .tree-row:hover .tree-actions{ opacity:1; }
 
   .tree-action-btn{
-    width:24px;
-    height:24px;
+    width:28px;
+    height:28px;
     display:flex;
     align-items:center;
     justify-content:center;
@@ -635,10 +670,11 @@
       </button>
     </div>
     <div class="side-menu-body">
-      <div class="side-menu-section">My diagrams</div>
-      <div class="tree-toolbar">
-        <button class="tree-toolbar-btn" id="dr-new-folder">+ Folder</button>
-        <button class="tree-toolbar-btn" id="dr-save-current">+ Save current</button>
+      <div class="side-menu-section">
+        <span>My diagrams</span>
+        <button class="tree-action-btn" id="dr-new-folder" title="New folder">
+          <svg width="20" height="20" viewBox="0 0 16 16" fill="none"><path d="M2 4.2c0-.66.54-1.2 1.2-1.2h3.2l1.4 1.6h5c.66 0 1.2.54 1.2 1.2v6.2c0 .66-.54 1.2-1.2 1.2H3.2c-.66 0-1.2-.54-1.2-1.2V4.2z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M6 7.6H10M8 5.6V9.6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        </button>
       </div>
       <div class="current-file-bar" id="current-file-bar" style="display:none;">
         <span class="cf-name" id="current-file-name"></span>
@@ -663,10 +699,6 @@
 
       <div class="side-menu-divider"></div>
       <div class="side-menu-section">View</div>
-      <button class="side-menu-item" id="menu-toggle-script" data-close-menu>
-        <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><rect x="1.5" y="2.5" width="13" height="11" rx="1.5" stroke="currentColor" stroke-width="1.3"/><path d="M6 2.5V13.5" stroke="currentColor" stroke-width="1.3"/></svg>
-        Toggle script editor
-      </button>
       <button class="side-menu-item" id="menu-toggle-bottom" data-close-menu>
         <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><rect x="1.5" y="1.5" width="13" height="13" rx="1.5" stroke="currentColor" stroke-width="1.3"/><path d="M1.5 10.5H14.5" stroke="currentColor" stroke-width="1.3"/></svg>
         Toggle bottom boxes
@@ -702,6 +734,10 @@
       </svg>
     </button>
 
+    <button class="icon-toggle-btn" id="script-toggle-btn" aria-label="Toggle script editor" title="Toggle script editor">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="1.5" y="2.5" width="13" height="11" rx="1.5" stroke="currentColor" stroke-width="1.3"/><path d="M6 2.5V13.5" stroke="currentColor" stroke-width="1.3"/></svg>
+    </button>
+
     <div class="brand">
       <span class="mark">SEQ</span>
       <span class="name">Sequence</span>
@@ -730,11 +766,6 @@
     <label class="toggle-control" for="show-bottom">
       <input type="checkbox" id="show-bottom" checked>
       <span>Bottom boxes</span>
-    </label>
-
-    <label class="toggle-control" for="show-script">
-      <input type="checkbox" id="show-script">
-      <span>Show script</span>
     </label>
 
     <div class="action-group">
@@ -768,6 +799,7 @@
         <div>Double-click a note or a loop/alt/opt/par tab to edit its text the same way.</div>
         <div>Hover a note or a block frame and click the red <b>×</b> in its corner to remove it — a removed block keeps the messages inside, just un-wrapped.</div>
       </div>
+      <div class="editor-resize-handle" id="editor-resize-handle" title="Drag to resize"></div>
     </div>
 
     <div class="canvas-pane">
@@ -818,8 +850,8 @@ note over Browser,API: session closed`;
   const spacingEl = document.getElementById('spacing');
   const spacingVal = document.getElementById('spacing-val');
   const showBottomEl = document.getElementById('show-bottom');
-  const showScriptEl = document.getElementById('show-script');
   const mainEl = document.querySelector('.main');
+  let scriptVisible = false;
 
   let customX = {};   // participant name -> manually dragged x position
   let dragState = null; // {name, startMouseX, startX}
@@ -846,7 +878,13 @@ note over Browser,API: session closed`;
 
     const lines = rawLines
       .map((l,i)=>({raw:l, i}))
-      .filter(l=>l.raw.trim().length && !/^\s*(#|\/\/)/.test(l.raw));
+      .filter(l=>{
+        const t = l.raw.trim();
+        if(!t.length) return false;
+        if(/^(#|\/\/|%%)/.test(t)) return false; // comment lines ('%%' is Mermaid-style)
+        if(/^sequenceDiagram\b/i.test(t)) return false; // optional Mermaid header, purely decorative here
+        return true;
+      });
 
     const arrowRe = /^(\w+)\s*(-->>|-->|->>|->)\s*(\w+)\s*:\s*(.*)$/;
     const participantRe = /^participant\s+(\w+)(?:\s+as\s+(.+))?$/i;
@@ -854,7 +892,7 @@ note over Browser,API: session closed`;
     const noteRe = /^note\s+(over|left of|right of)\s+([\w\s,]+?):\s*(.*)$/i;
     const activateRe = /^activate\s+(\w+)$/i;
     const deactivateRe = /^deactivate\s+(\w+)$/i;
-    const blockStartRe = /^(loop|alt|opt|par|critical)\b\s*(.*?)\s*(?:\[([^\]]+)\])?$/i;
+    const blockStartRe = /^(loop|alt|opt|par|critical|rect)\b\s*(.*?)\s*(?:\[([^\]]+)\])?$/i;
     const elseRe = /^else\b\s*(.*)$/i;
     const endRe = /^end$/i;
     const autonumberRe = /^autonumber(?:\s+(on|off))?$/i;
@@ -1022,6 +1060,8 @@ note over Browser,API: session closed`;
       return line2 ? [line1, line2] : [line1];
     }
 
+    const BR_RE = /<br\s*\/?>/i;
+
     // Fits a label to the available horizontal space: shrinks the font down to
     // LABEL_MIN_SIZE first, and if it still doesn't fit on one line, wraps it
     // onto a second line (shrinking further if needed).
@@ -1029,6 +1069,20 @@ note over Browser,API: session closed`;
       if(!text) return {lines:[''], fontSize:LABEL_BASE_SIZE};
       const pad = 10;
       const usable = Math.max(availableWidth - pad, 20);
+
+      // Explicit <br/> tags are honored as hard line breaks (any number of them),
+      // rather than run through the auto-wrap-to-two-lines logic below.
+      if(BR_RE.test(text)){
+        const hardLines = text.split(BR_RE).map(s=>s.trim());
+        const maxLen = Math.max(1, ...hardLines.map(l=>l.length));
+        const neededBase = maxLen * LABEL_BASE_SIZE * LABEL_CHAR_RATIO;
+        let fontSize = LABEL_BASE_SIZE;
+        if(neededBase > usable){
+          fontSize = Math.max(LABEL_MIN_SIZE, usable / (maxLen * LABEL_CHAR_RATIO));
+          fontSize = Math.round(fontSize*10)/10;
+        }
+        return {lines: hardLines, fontSize};
+      }
 
       const neededAtBase = text.length * LABEL_BASE_SIZE * LABEL_CHAR_RATIO;
       if(neededAtBase <= usable) return {lines:[text], fontSize:LABEL_BASE_SIZE};
@@ -1066,7 +1120,7 @@ note over Browser,API: session closed`;
       eventYMap.push({y, lineIndex:i});
 
       if((m = t.match(blockStartRe))){
-        blockStack.push({type:m[1].toLowerCase(), label:m[2]||'', span:m[3]||null, startY:y, dividers:[], lineIndex:i});
+        blockStack.push({type:m[1].toLowerCase(), label:m[2]||'', span:m[3]||null, startY:y, dividers:[], lineIndex:i, svgIndex: svgParts.length});
         y += 34;
         continue;
       }
@@ -1096,6 +1150,19 @@ note over Browser,API: session closed`;
         }
         const bx = left, bw = right-left, bh = y - blk.startY + 14;
         const by = blk.startY - 4;
+
+        if(blk.type === 'rect'){
+          // Mermaid-style "rect <color>" background band — drawn behind everything
+          // it contains, so it's spliced in at the array position captured when the
+          // block opened rather than appended (which would paint it on top).
+          const rawColor = (blk.label || '').trim();
+          const color = /^[a-zA-Z0-9#(),.\s-]{1,40}$/.test(rawColor) ? rawColor : '#F0F0F0';
+          svgParts.splice(blk.svgIndex, 0,
+            `<rect x="${bx}" y="${by}" width="${bw}" height="${bh}" rx="4" fill="${color}" opacity="0.55" data-line="${blk.lineIndex}"/>`);
+          y += 20;
+          continue;
+        }
+
         let inner = `<rect x="${bx}" y="${by}" width="${bw}" height="${bh}" rx="4" fill="none"
                      stroke="var(--teal,#2F6FED)" stroke-width="1.3" stroke-dasharray="5,4" opacity="0.85"/>`;
         const tabW = Math.min(bw-10, 34 + (blk.type.length+ (blk.label?blk.label.length:0))*6.4);
@@ -1137,7 +1204,7 @@ note over Browser,API: session closed`;
         const names = m[2].split(',').map(s=>s.trim());
         names.forEach(n=>{ if(!byName[n]) throw new Error(`Line ${i+1}: unknown participant "${n}"`); });
         const text = m[3];
-        const textLines = text.split('\\n');
+        const textLines = text.split(/\\n|<br\s*\/?>/i).map(s=>s.trim());
         const boxH = 24 + textLines.length*15;
         let bx, bw;
         if(pos === 'over'){
@@ -1185,14 +1252,15 @@ note over Browser,API: session closed`;
           }
           const fit = fitLabel(label, loopW + 40);
           const wrapped = fit.lines.length > 1;
-          const textEls = wrapped
-            ? `<text x="${x+10}" y="${y+10}" font-family="IBM Plex Mono, monospace" font-size="${fit.fontSize}" fill="#1F2430">${esc(fit.lines[0])}</text>
-               <text x="${x+10}" y="${y+10+fit.fontSize+3}" font-family="IBM Plex Mono, monospace" font-size="${fit.fontSize}" fill="#1F2430">${esc(fit.lines[1])}</text>`
-            : `<text x="${x+10}" y="${y+16}" font-family="IBM Plex Mono, monospace" font-size="${fit.fontSize}" fill="#1F2430">${esc(fit.lines[0])}</text>`;
+          const lineHeight = fit.fontSize + 3;
+          const firstBaseline = wrapped ? y+10 : y+16;
+          const textEls = fit.lines.map((ln, idx)=>
+            `<text x="${x+10}" y="${firstBaseline + idx*lineHeight}" font-family="IBM Plex Mono, monospace" font-size="${fit.fontSize}" fill="#1F2430">${esc(ln)}</text>`
+          ).join('\n');
           const maxLen = Math.max(1, ...fit.lines.map(l=>l.length));
           const hitW = Math.max(50, maxLen * fit.fontSize * 0.62 + 14);
-          const hitH = wrapped ? (fit.fontSize*2 + 16) : (fit.fontSize + 12);
-          const hitY = wrapped ? (y+10-fit.fontSize-2) : (y+16-fit.fontSize-2);
+          const hitH = (fit.lines.length-1)*lineHeight + fit.fontSize + (wrapped ? 16 : 12);
+          const hitY = firstBaseline - fit.fontSize - 2;
           const labelSvg = `<g class="msg-label" data-line="${i}">
               <rect x="${x+6}" y="${hitY}" width="${hitW}" height="${hitH}" fill="transparent"/>
               ${textEls}
@@ -1204,7 +1272,7 @@ note over Browser,API: session closed`;
             ${labelSvg}
             ${badge}
           `);
-          y += wrapped ? 64 : 50;
+          y += wrapped ? 50 + (fit.lines.length-1)*lineHeight : 50;
           continue;
         }
 
@@ -1220,15 +1288,17 @@ note over Browser,API: session closed`;
         }
         const fit = fitLabel(label, Math.abs(txAdj - fxAdj));
         const wrapped = fit.lines.length > 1;
+        const lineHeight2 = fit.fontSize + 3;
+        const lastBaseline = y-8;
+        const topBaseline = lastBaseline - (fit.lines.length-1)*lineHeight2;
         const midX = (fxAdj+txAdj)/2;
-        const textEls = wrapped
-          ? `<text x="${midX}" y="${y-22}" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="${fit.fontSize}" fill="#1F2430">${esc(fit.lines[0])}</text>
-             <text x="${midX}" y="${y-8}" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="${fit.fontSize}" fill="#1F2430">${esc(fit.lines[1])}</text>`
-          : `<text x="${midX}" y="${y-8}" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="${fit.fontSize}" fill="#1F2430">${esc(fit.lines[0])}</text>`;
+        const textEls = fit.lines.map((ln, idx)=>
+          `<text x="${midX}" y="${topBaseline + idx*lineHeight2}" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="${fit.fontSize}" fill="#1F2430">${esc(ln)}</text>`
+        ).join('\n');
         const maxLen2 = Math.max(1, ...fit.lines.map(l=>l.length));
         const hitW2 = Math.max(50, maxLen2 * fit.fontSize * 0.62 + 14);
-        const hitH2 = wrapped ? (fit.fontSize*2 + 18) : (fit.fontSize + 12);
-        const hitY2 = wrapped ? (y-22-fit.fontSize-2) : (y-8-fit.fontSize-2);
+        const hitH2 = (fit.lines.length-1)*lineHeight2 + fit.fontSize + (wrapped ? 18 : 12);
+        const hitY2 = topBaseline - fit.fontSize - 2;
         const labelSvg = `<g class="msg-label" data-line="${i}">
             <rect x="${midX-hitW2/2}" y="${hitY2}" width="${hitW2}" height="${hitH2}" fill="transparent"/>
             ${textEls}
@@ -1239,7 +1309,7 @@ note over Browser,API: session closed`;
           ${messageLine(lineStartX, txAdj, y, dashed, async)}
           ${badge}
         `);
-        y += wrapped ? 60 : 46;
+        y += wrapped ? 46 + (fit.lines.length-1)*lineHeight2 : 46;
         continue;
       }
 
@@ -1410,7 +1480,7 @@ note over Browser,API: session closed`;
         attachAddHandlers();
         const openBtn = document.getElementById('empty-state-open-script');
         if(openBtn) openBtn.addEventListener('click', ()=>{
-          showScriptEl.checked = true;
+          scriptVisible = true;
           updateScriptVisibility();
           dslEl.focus();
         });
@@ -2461,11 +2531,71 @@ note over Browser,API: session closed`;
   });
   showBottomEl.addEventListener('change', doRender);
 
+  const scriptToggleBtn = document.getElementById('script-toggle-btn');
   function updateScriptVisibility(){
-    mainEl.classList.toggle('script-hidden', !showScriptEl.checked);
+    mainEl.classList.toggle('script-hidden', !scriptVisible);
+    if(scriptToggleBtn) scriptToggleBtn.classList.toggle('active', scriptVisible);
   }
-  showScriptEl.addEventListener('change', updateScriptVisibility);
+  scriptToggleBtn.addEventListener('click', ()=>{
+    scriptVisible = !scriptVisible;
+    updateScriptVisibility();
+  });
   updateScriptVisibility();
+
+  // ---------------- Script panel resize ----------------
+  (function(){
+    const paneEl = document.querySelector('.editor-pane');
+    const handle = document.getElementById('editor-resize-handle');
+    if(!paneEl || !handle) return;
+
+    const MIN_W = 260;
+    const MAX_W = 900;
+    const STORAGE_KEY = 'sequence-app-editor-width';
+
+    function applyWidth(w){
+      paneEl.style.width = Math.max(MIN_W, Math.min(w, MAX_W)) + 'px';
+    }
+
+    try{
+      const saved = parseInt(localStorage.getItem(STORAGE_KEY), 10);
+      if(!isNaN(saved)) applyWidth(saved);
+    }catch(e){}
+
+    let dragging = false, startX = 0, startW = 0;
+
+    function pointerX(e){ return e.touches ? e.touches[0].clientX : e.clientX; }
+
+    function onMove(e){
+      if(!dragging) return;
+      applyWidth(startW + (pointerX(e) - startX));
+      e.preventDefault();
+    }
+    function onUp(){
+      if(!dragging) return;
+      dragging = false;
+      handle.classList.remove('dragging');
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      try{ localStorage.setItem(STORAGE_KEY, parseInt(paneEl.style.width, 10)); }catch(e){}
+    }
+    function onDown(e){
+      dragging = true;
+      startX = pointerX(e);
+      startW = paneEl.getBoundingClientRect().width;
+      handle.classList.add('dragging');
+      document.body.style.cursor = 'ew-resize';
+      document.body.style.userSelect = 'none';
+      e.preventDefault();
+    }
+
+    handle.addEventListener('mousedown', onDown);
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+    handle.addEventListener('touchstart', onDown, {passive:false});
+    window.addEventListener('touchmove', onMove, {passive:false});
+    window.addEventListener('touchend', onUp);
+  })();
+
   dslEl.addEventListener('keydown', (e)=>{
     if(e.key === 'Tab'){
       e.preventDefault();
@@ -2548,10 +2678,6 @@ note over Browser,API: session closed`;
     document.getElementById('menu-reset-layout').addEventListener('click', ()=>{
       document.getElementById('btn-reset-layout').click();
     });
-    document.getElementById('menu-toggle-script').addEventListener('click', ()=>{
-      showScriptEl.checked = !showScriptEl.checked;
-      showScriptEl.dispatchEvent(new Event('change'));
-    });
     document.getElementById('menu-toggle-bottom').addEventListener('click', ()=>{
       showBottomEl.checked = !showBottomEl.checked;
       showBottomEl.dispatchEvent(new Event('change'));
@@ -2572,12 +2698,12 @@ note over Browser,API: session closed`;
     const STORAGE_KEY = 'sequence-app-drawings-v1';
     const treeEl = document.getElementById('drawings-tree');
     const newFolderBtn = document.getElementById('dr-new-folder');
-    const saveCurrentBtn = document.getElementById('dr-save-current');
     const currentFileBar = document.getElementById('current-file-bar');
     const currentFileName = document.getElementById('current-file-name');
 
     let storageAvailable = true;
     let expanded = new Set(); // folder ids currently expanded (session only)
+    let pendingNew = null; // {parentId, type} while an inline create input is open
 
     function loadStore(){
       try{
@@ -2612,13 +2738,13 @@ note over Browser,API: session closed`;
     }
 
     function icon(name){
-      if(name === 'chevron') return '<svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M3 1.5L7.5 5L3 8.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-      if(name === 'folder') return '<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M2 4.2c0-.66.54-1.2 1.2-1.2h3.2l1.4 1.6h5c.66 0 1.2.54 1.2 1.2v6.2c0 .66-.54 1.2-1.2 1.2H3.2c-.66 0-1.2-.54-1.2-1.2V4.2z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>';
-      if(name === 'file') return '<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M4 1.8h5l3 3v8.4a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V2.8a1 1 0 0 1 1-1z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="M9 1.8V4.8H12" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>';
-      if(name === 'addfile') return '<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M4 1.8h5l3 3v8.4a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V2.8a1 1 0 0 1 1-1z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><path d="M6.5 8.5H9.5M8 7V10" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>';
-      if(name === 'addfolder') return '<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M2 4.2c0-.66.54-1.2 1.2-1.2h3.2l1.4 1.6h5c.66 0 1.2.54 1.2 1.2v6.2c0 .66-.54 1.2-1.2 1.2H3.2c-.66 0-1.2-.54-1.2-1.2V4.2z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><path d="M6 7.6H10M8 5.6V9.6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>';
-      if(name === 'rename') return '<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M11 2.2l2.8 2.8L5.4 13.4l-3.4.6.6-3.4L11 2.2z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>';
-      if(name === 'delete') return '<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 4.5h10M6.5 4.5V3a1 1 0 0 1 1-1h1a1 1 0 0 1 1 1v1.5M4.5 4.5V13a1 1 0 0 0 1 1h5a1 1 0 0 0 1-1V4.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+      if(name === 'chevron') return '<svg width="12" height="12" viewBox="0 0 10 10" fill="none"><path d="M3 1.5L7.5 5L3 8.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+      if(name === 'folder') return '<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M2 4.2c0-.66.54-1.2 1.2-1.2h3.2l1.4 1.6h5c.66 0 1.2.54 1.2 1.2v6.2c0 .66-.54 1.2-1.2 1.2H3.2c-.66 0-1.2-.54-1.2-1.2V4.2z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>';
+      if(name === 'file') return '<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M4 1.8h5l3 3v8.4a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V2.8a1 1 0 0 1 1-1z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M9 1.8V4.8H12" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>';
+      if(name === 'addfile') return '<svg width="19" height="19" viewBox="0 0 16 16" fill="none"><path d="M4 1.8h5l3 3v8.4a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V2.8a1 1 0 0 1 1-1z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M6.5 8.5H9.5M8 7V10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>';
+      if(name === 'addfolder') return '<svg width="19" height="19" viewBox="0 0 16 16" fill="none"><path d="M2 4.2c0-.66.54-1.2 1.2-1.2h3.2l1.4 1.6h5c.66 0 1.2.54 1.2 1.2v6.2c0 .66-.54 1.2-1.2 1.2H3.2c-.66 0-1.2-.54-1.2-1.2V4.2z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M6 7.6H10M8 5.6V9.6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>';
+      if(name === 'rename') return '<svg width="19" height="19" viewBox="0 0 16 16" fill="none"><path d="M11 2.2l2.8 2.8L5.4 13.4l-3.4.6.6-3.4L11 2.2z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>';
+      if(name === 'delete') return '<svg width="19" height="19" viewBox="0 0 16 16" fill="none"><path d="M3 4.5h10M6.5 4.5V3a1 1 0 0 1 1-1h1a1 1 0 0 1 1 1v1.5M4.5 4.5V13a1 1 0 0 0 1 1h5a1 1 0 0 0 1-1V4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
       return '';
     }
 
@@ -2629,15 +2755,26 @@ note over Browser,API: session closed`;
       return Object.values(store.files).filter(f=>f.parentId===parentId).sort((a,b)=>a.name.localeCompare(b.name));
     }
 
+    function ensureDefaultFolder(){
+      if(!storageAvailable) return;
+      if(Object.keys(store.folders).length > 0) return;
+      const id = genId();
+      store.folders[id] = {id, name: 'My diagrams', parentId: null};
+      expanded.add(id);
+      saveStore(store);
+    }
+
     function renderTree(){
+      ensureDefaultFolder();
       treeEl.innerHTML = '';
       const rootFolders = childFolders(null);
       const rootFiles = childFiles(null);
-      if(rootFolders.length === 0 && rootFiles.length === 0){
+      const creatingAtRoot = pendingNew && pendingNew.parentId === null;
+      if(rootFolders.length === 0 && rootFiles.length === 0 && !creatingAtRoot){
         const empty = document.createElement('div');
         empty.className = 'drawings-empty';
         empty.textContent = storageAvailable
-          ? 'Nothing saved yet — use "+ Save current" to store this diagram, or "+ Folder" to organize.'
+          ? 'Nothing saved yet — use the "New folder" button above to organize, then add a file inside.'
           : 'Local storage is unavailable in this context, so saved diagrams will not persist. Open the downloaded file directly in a browser to enable saving.';
         treeEl.appendChild(empty);
         return;
@@ -2646,8 +2783,73 @@ note over Browser,API: session closed`;
     }
 
     function renderLevel(parentId, container, depth){
+      if(pendingNew && pendingNew.parentId === parentId){
+        container.appendChild(buildNewRow(depth, pendingNew.type));
+      }
       childFolders(parentId).forEach(folder=> container.appendChild(buildFolderRow(folder, depth)));
       childFiles(parentId).forEach(file=> container.appendChild(buildFileRow(file, depth)));
+    }
+
+    function buildNewRow(depth, type){
+      const row = document.createElement('div');
+      row.className = 'tree-row tree-new';
+      row.style.paddingLeft = (8 + depth*16) + 'px';
+      row.innerHTML = `
+        <span class="tree-spacer"></span>
+        <span class="tree-icon">${icon(type === 'folder' ? 'folder' : 'file')}</span>
+        <input type="text" class="tree-new-input" placeholder="${type === 'folder' ? 'Folder name' : 'Diagram name'}">`;
+
+      const input = row.querySelector('input');
+      let settled = false;
+      const commit = ()=>{
+        if(settled) return;
+        settled = true;
+        finishCreate(input.value);
+      };
+      const cancel = ()=>{
+        if(settled) return;
+        settled = true;
+        cancelCreate();
+      };
+      input.addEventListener('keydown', (e)=>{
+        if(e.key === 'Enter'){ e.preventDefault(); commit(); }
+        else if(e.key === 'Escape'){ e.preventDefault(); cancel(); }
+      });
+      input.addEventListener('click', (e)=> e.stopPropagation());
+      input.addEventListener('blur', ()=>{ input.value.trim() ? commit() : cancel(); });
+
+      queueMicrotask(()=>{ input.focus(); });
+      return row;
+    }
+
+    function startCreate(parentId, type){
+      pendingNew = {parentId: parentId || null, type};
+      if(parentId) expanded.add(parentId);
+      renderTree();
+    }
+
+    function finishCreate(rawName){
+      if(!pendingNew) return;
+      const {parentId, type} = pendingNew;
+      const name = rawName.trim() || (type === 'folder' ? 'New folder' : 'Untitled diagram');
+      const id = genId();
+      if(type === 'folder'){
+        store.folders[id] = {id, name, parentId: parentId || null};
+      } else {
+        store.files[id] = {id, name, parentId: parentId || null, content: '', updatedAt: Date.now()};
+        currentFileId = id;
+        dslEl.value = '';
+        render();
+        updateCurrentFileBar();
+      }
+      pendingNew = null;
+      saveStore(store);
+      renderTree();
+    }
+
+    function cancelCreate(){
+      pendingNew = null;
+      renderTree();
     }
 
     function buildFolderRow(folder, depth){
@@ -2677,11 +2879,11 @@ note over Browser,API: session closed`;
 
       row.querySelector('[data-action="add-file"]').addEventListener('click', (e)=>{
         e.stopPropagation();
-        createNewFile(folder.id);
+        startCreate(folder.id, 'file');
       });
       row.querySelector('[data-action="add-folder"]').addEventListener('click', (e)=>{
         e.stopPropagation();
-        createFolder(folder.id);
+        startCreate(folder.id, 'folder');
       });
       row.querySelector('[data-action="rename"]').addEventListener('click', (e)=>{
         e.stopPropagation();
@@ -2730,42 +2932,6 @@ note over Browser,API: session closed`;
       });
 
       return row;
-    }
-
-    function createFolder(parentId){
-      const name = prompt('Folder name:');
-      if(!name || !name.trim()) return;
-      const id = genId();
-      store.folders[id] = {id, name: name.trim(), parentId: parentId || null};
-      expanded.add(parentId || null);
-      saveStore(store);
-      renderTree();
-    }
-
-    function createNewFile(parentId){
-      const name = prompt('New file name:', 'Untitled diagram');
-      if(!name || !name.trim()) return;
-      const id = genId();
-      store.files[id] = {id, name: name.trim(), parentId: parentId || null, content: '', updatedAt: Date.now()};
-      if(parentId) expanded.add(parentId);
-      saveStore(store);
-      currentFileId = id;
-      dslEl.value = '';
-      render();
-      updateCurrentFileBar();
-      renderTree();
-    }
-
-    function saveCurrentAs(parentId){
-      const name = prompt('Save diagram as:', 'Untitled diagram');
-      if(!name || !name.trim()) return;
-      const id = genId();
-      store.files[id] = {id, name: name.trim(), parentId: parentId || null, content: dslEl.value, updatedAt: Date.now()};
-      if(parentId) expanded.add(parentId);
-      saveStore(store);
-      currentFileId = id;
-      updateCurrentFileBar();
-      renderTree();
     }
 
     function renameFolder(id){
@@ -2849,8 +3015,7 @@ note over Browser,API: session closed`;
       }
     }
 
-    newFolderBtn.addEventListener('click', ()=> createFolder(null));
-    saveCurrentBtn.addEventListener('click', ()=> saveCurrentAs(null));
+    newFolderBtn.addEventListener('click', ()=> startCreate(null, 'folder'));
 
     autoSaveCurrentFile = function(){
       if(!currentFileId || !store.files[currentFileId]) return;
