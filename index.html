@@ -900,6 +900,7 @@ note over Browser,API: session closed`;
   let closeSideMenu = null; // set by the side-menu module below, so other modules can close it
   let currentFileId = null; // id of the saved-drawing file currently loaded in the editor, if any
   let autoSaveCurrentFile = null; // set by the saved-drawings module; called on every render to persist changes
+  let restoredLastFile = false; // set true if the saved-drawings module restores the last-opened file on init
 
   // ---------------- Parsing ----------------
 
@@ -2874,16 +2875,17 @@ note over Browser,API: session closed`;
     let storageAvailable = true;
     let expanded = new Set(); // folder ids currently expanded (session only)
     let pendingNew = null; // {parentId, type} while an inline create input is open
+    let renamingId = null; // id of the folder/file currently being renamed inline
 
     function loadStore(){
       try{
         const raw = localStorage.getItem(STORAGE_KEY);
-        if(!raw) return {folders:{}, files:{}};
+        if(!raw) return {folders:{}, files:{}, lastOpenedId: null};
         const parsed = JSON.parse(raw);
-        return {folders: parsed.folders || {}, files: parsed.files || {}};
+        return {folders: parsed.folders || {}, files: parsed.files || {}, lastOpenedId: parsed.lastOpenedId || null};
       }catch(e){
         storageAvailable = false;
-        return {folders:{}, files:{}};
+        return {folders:{}, files:{}, lastOpenedId: null};
       }
     }
 
@@ -2898,6 +2900,14 @@ note over Browser,API: session closed`;
     }
 
     let store = loadStore();
+
+    // Tracks which file is open so it can be restored next time the app loads —
+    // every place that changes currentFileId should go through here.
+    function setCurrentFile(id){
+      currentFileId = id;
+      store.lastOpenedId = id;
+      saveStore(store);
+    }
 
     function genId(){
       return 'id_' + Date.now().toString(36) + Math.random().toString(36).slice(2,8);
@@ -2960,6 +2970,30 @@ note over Browser,API: session closed`;
       childFiles(parentId).forEach(file=> container.appendChild(buildFileRow(file, depth)));
     }
 
+    // Shared wiring for any inline tree text input (create or rename): Enter
+    // commits, Escape cancels, and blurring commits when there's text or
+    // cancels when left empty — so no separate popup/prompt is ever needed.
+    function wireInlineInput(input, {onCommit, onCancel}){
+      let settled = false;
+      const commit = ()=>{
+        if(settled) return;
+        settled = true;
+        onCommit(input.value);
+      };
+      const cancel = ()=>{
+        if(settled) return;
+        settled = true;
+        onCancel();
+      };
+      input.addEventListener('keydown', (e)=>{
+        if(e.key === 'Enter'){ e.preventDefault(); commit(); }
+        else if(e.key === 'Escape'){ e.preventDefault(); cancel(); }
+      });
+      input.addEventListener('click', (e)=> e.stopPropagation());
+      input.addEventListener('blur', ()=>{ input.value.trim() ? commit() : cancel(); });
+      queueMicrotask(()=>{ input.focus(); input.select(); });
+    }
+
     function buildNewRow(depth, type){
       const row = document.createElement('div');
       row.className = 'tree-row tree-new';
@@ -2969,30 +3003,15 @@ note over Browser,API: session closed`;
         <span class="tree-icon">${icon(type === 'folder' ? 'folder' : 'file')}</span>
         <input type="text" class="tree-new-input" placeholder="${type === 'folder' ? 'Folder name' : 'Diagram name'}">`;
 
-      const input = row.querySelector('input');
-      let settled = false;
-      const commit = ()=>{
-        if(settled) return;
-        settled = true;
-        finishCreate(input.value);
-      };
-      const cancel = ()=>{
-        if(settled) return;
-        settled = true;
-        cancelCreate();
-      };
-      input.addEventListener('keydown', (e)=>{
-        if(e.key === 'Enter'){ e.preventDefault(); commit(); }
-        else if(e.key === 'Escape'){ e.preventDefault(); cancel(); }
+      wireInlineInput(row.querySelector('input'), {
+        onCommit: (val)=> finishCreate(val),
+        onCancel: cancelCreate
       });
-      input.addEventListener('click', (e)=> e.stopPropagation());
-      input.addEventListener('blur', ()=>{ input.value.trim() ? commit() : cancel(); });
-
-      queueMicrotask(()=>{ input.focus(); });
       return row;
     }
 
     function startCreate(parentId, type){
+      renamingId = null;
       pendingNew = {parentId: parentId || null, type};
       if(parentId) expanded.add(parentId);
       renderTree();
@@ -3007,7 +3026,7 @@ note over Browser,API: session closed`;
         store.folders[id] = {id, name, parentId: parentId || null};
       } else {
         store.files[id] = {id, name, parentId: parentId || null, content: '', updatedAt: Date.now()};
-        currentFileId = id;
+        setCurrentFile(id);
         dslEl.value = '';
         customX = {};
         resetHistory();
@@ -3031,40 +3050,52 @@ note over Browser,API: session closed`;
       row.className = 'tree-row tree-folder';
       row.style.paddingLeft = (8 + depth*16) + 'px';
       const isOpen = expanded.has(folder.id);
+      const isRenaming = renamingId === folder.id;
 
-      row.innerHTML = `
-        <span class="tree-toggle${isOpen?' expanded':''}">${icon('chevron')}</span>
-        <span class="tree-icon">${icon('folder')}</span>
-        <span class="tree-label">${esc(folder.name)}</span>
-        <span class="tree-actions">
-          <button class="tree-action-btn" data-action="add-file" title="New file">${icon('addfile')}</button>
-          <button class="tree-action-btn" data-action="add-folder" title="New subfolder">${icon('addfolder')}</button>
-          <button class="tree-action-btn" data-action="rename" title="Rename">${icon('rename')}</button>
-          <button class="tree-action-btn danger" data-action="delete" title="Delete folder">${icon('delete')}</button>
-        </span>`;
+      if(isRenaming){
+        row.innerHTML = `
+          <span class="tree-toggle${isOpen?' expanded':''}">${icon('chevron')}</span>
+          <span class="tree-icon">${icon('folder')}</span>
+          <input type="text" class="tree-new-input" value="${esc(folder.name)}">`;
+        wireInlineInput(row.querySelector('input'), {
+          onCommit: (val)=> commitRenameFolder(folder.id, val),
+          onCancel: cancelRename
+        });
+      } else {
+        row.innerHTML = `
+          <span class="tree-toggle${isOpen?' expanded':''}">${icon('chevron')}</span>
+          <span class="tree-icon">${icon('folder')}</span>
+          <span class="tree-label">${esc(folder.name)}</span>
+          <span class="tree-actions">
+            <button class="tree-action-btn" data-action="add-file" title="New file">${icon('addfile')}</button>
+            <button class="tree-action-btn" data-action="add-folder" title="New subfolder">${icon('addfolder')}</button>
+            <button class="tree-action-btn" data-action="rename" title="Rename">${icon('rename')}</button>
+            <button class="tree-action-btn danger" data-action="delete" title="Delete folder">${icon('delete')}</button>
+          </span>`;
 
-      row.addEventListener('click', (e)=>{
-        if(e.target.closest('[data-action]')) return;
-        if(expanded.has(folder.id)) expanded.delete(folder.id); else expanded.add(folder.id);
-        renderTree();
-      });
+        row.addEventListener('click', (e)=>{
+          if(e.target.closest('[data-action]')) return;
+          if(expanded.has(folder.id)) expanded.delete(folder.id); else expanded.add(folder.id);
+          renderTree();
+        });
 
-      row.querySelector('[data-action="add-file"]').addEventListener('click', (e)=>{
-        e.stopPropagation();
-        startCreate(folder.id, 'file');
-      });
-      row.querySelector('[data-action="add-folder"]').addEventListener('click', (e)=>{
-        e.stopPropagation();
-        startCreate(folder.id, 'folder');
-      });
-      row.querySelector('[data-action="rename"]').addEventListener('click', (e)=>{
-        e.stopPropagation();
-        renameFolder(folder.id);
-      });
-      row.querySelector('[data-action="delete"]').addEventListener('click', (e)=>{
-        e.stopPropagation();
-        deleteFolder(folder.id);
-      });
+        row.querySelector('[data-action="add-file"]').addEventListener('click', (e)=>{
+          e.stopPropagation();
+          startCreate(folder.id, 'file');
+        });
+        row.querySelector('[data-action="add-folder"]').addEventListener('click', (e)=>{
+          e.stopPropagation();
+          startCreate(folder.id, 'folder');
+        });
+        row.querySelector('[data-action="rename"]').addEventListener('click', (e)=>{
+          e.stopPropagation();
+          startRenameFolder(folder.id);
+        });
+        row.querySelector('[data-action="delete"]').addEventListener('click', (e)=>{
+          e.stopPropagation();
+          deleteFolder(folder.id);
+        });
+      }
 
       wrap.appendChild(row);
 
@@ -3080,50 +3111,81 @@ note over Browser,API: session closed`;
       const row = document.createElement('div');
       row.className = 'tree-row tree-file' + (file.id === currentFileId ? ' active' : '');
       row.style.paddingLeft = (8 + depth*16) + 'px';
+      const isRenaming = renamingId === file.id;
 
-      row.innerHTML = `
-        <span class="tree-spacer"></span>
-        <span class="tree-icon">${icon('file')}</span>
-        <span class="tree-label">${esc(file.name)}</span>
-        <span class="tree-actions">
-          <button class="tree-action-btn" data-action="rename" title="Rename">${icon('rename')}</button>
-          <button class="tree-action-btn danger" data-action="delete" title="Delete">${icon('delete')}</button>
-        </span>`;
+      if(isRenaming){
+        row.innerHTML = `
+          <span class="tree-spacer"></span>
+          <span class="tree-icon">${icon('file')}</span>
+          <input type="text" class="tree-new-input" value="${esc(file.name)}">`;
+        wireInlineInput(row.querySelector('input'), {
+          onCommit: (val)=> commitRenameFile(file.id, val),
+          onCancel: cancelRename
+        });
+      } else {
+        row.innerHTML = `
+          <span class="tree-spacer"></span>
+          <span class="tree-icon">${icon('file')}</span>
+          <span class="tree-label">${esc(file.name)}</span>
+          <span class="tree-actions">
+            <button class="tree-action-btn" data-action="rename" title="Rename">${icon('rename')}</button>
+            <button class="tree-action-btn danger" data-action="delete" title="Delete">${icon('delete')}</button>
+          </span>`;
 
-      row.addEventListener('click', (e)=>{
-        if(e.target.closest('[data-action]')) return;
-        loadFile(file.id);
-      });
-      row.querySelector('[data-action="rename"]').addEventListener('click', (e)=>{
-        e.stopPropagation();
-        renameFile(file.id);
-      });
-      row.querySelector('[data-action="delete"]').addEventListener('click', (e)=>{
-        e.stopPropagation();
-        deleteFile(file.id);
-      });
+        row.addEventListener('click', (e)=>{
+          if(e.target.closest('[data-action]')) return;
+          loadFile(file.id);
+        });
+        row.querySelector('[data-action="rename"]').addEventListener('click', (e)=>{
+          e.stopPropagation();
+          startRenameFile(file.id);
+        });
+        row.querySelector('[data-action="delete"]').addEventListener('click', (e)=>{
+          e.stopPropagation();
+          deleteFile(file.id);
+        });
+      }
 
       return row;
     }
 
-    function renameFolder(id){
-      const folder = store.folders[id];
-      if(!folder) return;
-      const name = prompt('Rename folder:', folder.name);
-      if(!name || !name.trim()) return;
-      folder.name = name.trim();
-      saveStore(store);
+    function startRenameFolder(id){
+      pendingNew = null;
+      renamingId = id;
       renderTree();
     }
 
-    function renameFile(id){
+    function startRenameFile(id){
+      pendingNew = null;
+      renamingId = id;
+      renderTree();
+    }
+
+    function commitRenameFolder(id, rawName){
+      const folder = store.folders[id];
+      renamingId = null;
+      const name = rawName.trim();
+      if(folder && name && name !== folder.name){
+        folder.name = name;
+        saveStore(store);
+      }
+      renderTree();
+    }
+
+    function commitRenameFile(id, rawName){
       const file = store.files[id];
-      if(!file) return;
-      const name = prompt('Rename diagram:', file.name);
-      if(!name || !name.trim()) return;
-      file.name = name.trim();
-      saveStore(store);
-      if(id === currentFileId) updateCurrentFileBar();
+      renamingId = null;
+      const name = rawName.trim();
+      if(file && name && name !== file.name){
+        file.name = name;
+        saveStore(store);
+        if(id === currentFileId) updateCurrentFileBar();
+      }
+      renderTree();
+    }
+
+    function cancelRename(){
+      renamingId = null;
       renderTree();
     }
 
@@ -3136,7 +3198,7 @@ note over Browser,API: session closed`;
       function removeRecursive(fid){
         childFiles(fid).forEach(f=>{
           delete store.files[f.id];
-          if(f.id === currentFileId){ currentFileId = null; clearedCurrent = true; }
+          if(f.id === currentFileId){ setCurrentFile(null); clearedCurrent = true; }
         });
         childFolders(fid).forEach(sub=> removeRecursive(sub.id));
         delete store.folders[fid];
@@ -3159,7 +3221,7 @@ note over Browser,API: session closed`;
       if(!confirm(`Delete "${file.name}"? This can't be undone.`)) return;
       delete store.files[id];
       if(id === currentFileId){
-        currentFileId = null;
+        setCurrentFile(null);
         dslEl.value = '';
         customX = {};
         resetHistory();
@@ -3176,7 +3238,7 @@ note over Browser,API: session closed`;
       dslEl.value = file.content;
       try{ customX = file.layout ? JSON.parse(file.layout) : {}; }catch(e){ customX = {}; }
       resetHistory();
-      currentFileId = id;
+      setCurrentFile(id);
       updateCurrentFileBar();
       render();
       renderTree();
@@ -3206,8 +3268,14 @@ note over Browser,API: session closed`;
       saveStore(store);
     };
 
-    renderTree();
-    updateCurrentFileBar();
+    // Restore whatever file was open last time, if it still exists.
+    if(store.lastOpenedId && store.files[store.lastOpenedId]){
+      restoredLastFile = true;
+      loadFile(store.lastOpenedId);
+    } else {
+      renderTree();
+      updateCurrentFileBar();
+    }
   })();
 
   document.getElementById('btn-png').addEventListener('click', ()=>{
@@ -3237,10 +3305,13 @@ note over Browser,API: session closed`;
     img.src = url;
   });
 
-  // init
-  dslEl.value = SAMPLE;
-  resetHistory();
-  render();
+  // init — the saved-drawings module (above) restores the last-opened file
+  // from localStorage if one exists; only fall back to the sample otherwise.
+  if(!restoredLastFile){
+    dslEl.value = SAMPLE;
+    resetHistory();
+    render();
+  }
 
 })();
 </script>
