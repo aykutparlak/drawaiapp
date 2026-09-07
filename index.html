@@ -358,6 +358,24 @@
   }
   .link-hint.show{ display:block; }
 
+  .history-controls{
+    position:absolute;
+    top:12px;
+    right:12px;
+    display:flex;
+    gap:6px;
+    z-index:20;
+  }
+  .history-controls .icon-toggle-btn:disabled{
+    opacity:0.35;
+    cursor:not-allowed;
+  }
+  .history-controls .icon-toggle-btn:disabled:hover{
+    border-color:var(--line-soft);
+    background:var(--panel);
+    color:var(--ink-muted);
+  }
+
   .arrow-type-picker{
     position:fixed;
     z-index:50;
@@ -783,6 +801,7 @@
       <textarea id="dsl" spellcheck="false"></textarea>
       <div class="error-bar" id="errbar"></div>
       <div class="help hidden-control">
+        <div><b>title</b> text &nbsp;— add <b>&lt;br/&gt;</b> for a smaller byline underneath, e.g. author/date</div>
         <div><b>participant</b> Name [as Label]</div>
         <div><b>A-&gt;B:</b> text &nbsp;<b>A--&gt;B:</b> text &nbsp;<b>A-&gt;&gt;B:</b> async &nbsp;<b>A--&gt;&gt;B:</b> async reply</div>
         <div><b>note over/left of/right of</b> A[,B]: text</div>
@@ -807,6 +826,20 @@
         <div id="diagram-holder"></div>
       </div>
       <div class="link-hint" id="link-hint">Drag to a lifeline and release to connect — Esc to cancel</div>
+      <div class="history-controls">
+        <button class="icon-toggle-btn" id="undo-btn" aria-label="Undo" title="Undo (Ctrl/Cmd+Z)" disabled>
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <path d="M6 9.3L2.7 6L6 2.7" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M2.7 6H9.7C11.7 6 13.3 7.6 13.3 9.7C13.3 11.7 11.7 13.3 9.7 13.3H7.3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+        <button class="icon-toggle-btn" id="redo-btn" aria-label="Redo" title="Redo (Ctrl/Cmd+Shift+Z)" disabled>
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <path d="M10 9.3L13.3 6L10 2.7" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M13.3 6H6.3C4.3 6 2.7 7.6 2.7 9.7C2.7 11.7 4.3 13.3 6.3 13.3H8.7" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+      </div>
     </div>
   </div>
 
@@ -964,7 +997,38 @@ note over Browser,API: session closed`;
     const diagramWidth = rightBound + 30;
 
     // Pass 2: walk events, build SVG pieces, track y cursor
-    const titleH = title ? 56 : 20;
+    //
+    // A `title` line may use <br/> to add smaller byline rows underneath the
+    // main title (e.g. "title BCR Flow<br/>Author: Jane Doe · 03/09/2026") —
+    // the first segment renders as the title, any further segments as a
+    // smaller, muted subtitle line each.
+    const titleLines = title ? title.split(/<br\s*\/?>/i).map(s=>s.trim()).filter(l=>l.length) : [];
+    let titleH, titleSvg;
+    if(titleLines.length === 0){
+      titleH = 20;
+      titleSvg = '';
+    } else if(titleLines.length === 1){
+      titleH = 56;
+      titleSvg = `<text x="${diagramWidth/2}" y="30" text-anchor="middle" font-family="IBM Plex Sans, sans-serif"
+                    font-size="17" font-weight="700" fill="#1F2430">${esc(titleLines[0])}</text>
+                    <line x1="${leftBound}" y1="42" x2="${rightBound}" y2="42" stroke="var(--grid-line,#1B3352)" stroke-width="1"/>`;
+    } else {
+      const SUBTITLE_LINE_H = 13;
+      const mainY = 22;
+      let cursorY = mainY + 15;
+      let subtitleSvg = '';
+      for(let k=1; k<titleLines.length; k++){
+        subtitleSvg += `<text x="${diagramWidth/2}" y="${cursorY}" text-anchor="middle" font-family="IBM Plex Mono, monospace"
+                      font-size="10.5" fill="#767E8C">${esc(titleLines[k])}</text>`;
+        cursorY += SUBTITLE_LINE_H;
+      }
+      const dividerY = cursorY + 6;
+      titleH = dividerY + 14;
+      titleSvg = `<text x="${diagramWidth/2}" y="${mainY}" text-anchor="middle" font-family="IBM Plex Sans, sans-serif"
+                    font-size="16" font-weight="700" fill="#1F2430">${esc(titleLines[0])}</text>
+                    ${subtitleSvg}
+                    <line x1="${leftBound}" y1="${dividerY}" x2="${rightBound}" y2="${dividerY}" stroke="var(--grid-line,#1B3352)" stroke-width="1"/>`;
+    }
     const headerH = 42;
     let y = titleH + headerH + 26;
 
@@ -1340,10 +1404,6 @@ note over Browser,API: session closed`;
       `<line x1="${p.x}" y1="${lifelineTop}" x2="${p.x}" y2="${lifelineBottom}" stroke="var(--line-soft,#D6DAE1)" stroke-width="1.2" stroke-dasharray="3,4"/>`
     ).join('');
 
-    const titleSvg = title ? `<text x="${diagramWidth/2}" y="30" text-anchor="middle" font-family="IBM Plex Sans, sans-serif"
-                    font-size="17" font-weight="700" fill="#1F2430">${esc(title)}</text>
-                    <line x1="${leftBound}" y1="42" x2="${rightBound}" y2="42" stroke="var(--grid-line,#1B3352)" stroke-width="1"/>` : '';
-
     const defs = `
       <defs>
         <marker id="arrowFilled" markerWidth="10" markerHeight="10" refX="8" refY="4" orient="auto">
@@ -1489,6 +1549,7 @@ note over Browser,API: session closed`;
         errbar.classList.add('show');
       }
     }
+    scheduleHistoryCommit();
   }
 
   let debounceTimer = null;
@@ -1496,6 +1557,100 @@ note over Browser,API: session closed`;
     clearTimeout(debounceTimer);
     debounceTimer = setTimeout(doRender, 120);
   }
+
+  // ---------------- Undo / redo history ----------------
+  // Tracks {content, layout} snapshots of the whole diagram (script text +
+  // dragged participant positions) so Ctrl/Cmd+Z and the undo/redo buttons
+  // work across every way the diagram can change — typing, dragging, or any
+  // of the click-to-add/remove canvas actions — not just native textarea undo.
+
+  let history = [];
+  let historyIndex = -1;
+  let historyCommitTimer = null;
+  let applyingHistory = false;
+
+  const undoBtn = document.getElementById('undo-btn');
+  const redoBtn = document.getElementById('redo-btn');
+
+  function snapshotState(){
+    return {content: dslEl.value, layout: JSON.stringify(customX)};
+  }
+
+  function statesEqual(a, b){
+    return !!a && !!b && a.content === b.content && a.layout === b.layout;
+  }
+
+  function updateHistoryButtons(){
+    if(undoBtn) undoBtn.disabled = historyIndex <= 0;
+    if(redoBtn) redoBtn.disabled = historyIndex >= history.length - 1;
+  }
+
+  function commitHistory(){
+    if(applyingHistory) return;
+    const snap = snapshotState();
+    if(statesEqual(history[historyIndex], snap)) return;
+    history = history.slice(0, historyIndex + 1);
+    history.push(snap);
+    if(history.length > 100) history.shift(); // cap memory use
+    historyIndex = history.length - 1;
+    updateHistoryButtons();
+  }
+
+  function scheduleHistoryCommit(){
+    if(applyingHistory) return;
+    clearTimeout(historyCommitTimer);
+    historyCommitTimer = setTimeout(commitHistory, 400);
+  }
+
+  function resetHistory(){
+    clearTimeout(historyCommitTimer);
+    history = [snapshotState()];
+    historyIndex = 0;
+    updateHistoryButtons();
+  }
+
+  function applyState(snap){
+    applyingHistory = true;
+    clearTimeout(historyCommitTimer);
+    dslEl.value = snap.content;
+    try{ customX = snap.layout ? JSON.parse(snap.layout) : {}; }catch(e){ customX = {}; }
+    doRender();
+    applyingHistory = false;
+    updateHistoryButtons();
+  }
+
+  function undo(){
+    clearTimeout(historyCommitTimer);
+    commitHistory(); // capture any pending in-progress edit before stepping back
+    if(historyIndex <= 0) return;
+    historyIndex--;
+    applyState(history[historyIndex]);
+  }
+
+  function redo(){
+    if(historyIndex >= history.length - 1) return;
+    historyIndex++;
+    applyState(history[historyIndex]);
+  }
+
+  if(undoBtn) undoBtn.addEventListener('click', undo);
+  if(redoBtn) redoBtn.addEventListener('click', redo);
+
+  document.addEventListener('keydown', (e)=>{
+    const mod = e.metaKey || e.ctrlKey;
+    if(!mod) return;
+    const key = e.key.toLowerCase();
+    if(key === 'z' && e.shiftKey){
+      e.preventDefault();
+      redo();
+    } else if(key === 'z'){
+      e.preventDefault();
+      undo();
+    } else if(key === 'y'){
+      e.preventDefault();
+      redo();
+    }
+  });
 
   // ---------------- Drag to reposition participants ----------------
 
@@ -2608,6 +2763,8 @@ note over Browser,API: session closed`;
 
   document.getElementById('btn-sample').addEventListener('click', ()=>{
     dslEl.value = SAMPLE;
+    customX = {};
+    resetHistory();
     render();
   });
   document.getElementById('btn-reset-layout').addEventListener('click', ()=>{
@@ -2616,13 +2773,26 @@ note over Browser,API: session closed`;
   });
   document.getElementById('btn-clear').addEventListener('click', ()=>{
     dslEl.value = '';
+    customX = {};
+    resetHistory();
     render();
   });
+
+  // Editor-only affordances (add/remove hotzones, hover-to-reveal buttons) are
+  // hidden purely via the page's CSS (opacity:0 until :hover), which isn't
+  // carried along when the SVG is serialized standalone for export — so they'd
+  // otherwise show up fully visible in the downloaded file. Strip them out.
+  function exportSvgMarkup(svgEl){
+    const clone = svgEl.cloneNode(true);
+    clone.querySelectorAll('.remove-btn, .inline-remove-btn, .add-hotzone, .lifeline-hitzone')
+      .forEach(el => el.remove());
+    return clone.outerHTML;
+  }
 
   document.getElementById('btn-svg').addEventListener('click', ()=>{
     const svgEl = holder.querySelector('svg');
     if(!svgEl) return;
-    const blob = new Blob([svgEl.outerHTML], {type:'image/svg+xml'});
+    const blob = new Blob([exportSvgMarkup(svgEl)], {type:'image/svg+xml'});
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url; a.download = 'sequence-diagram.svg';
@@ -2839,6 +3009,8 @@ note over Browser,API: session closed`;
         store.files[id] = {id, name, parentId: parentId || null, content: '', updatedAt: Date.now()};
         currentFileId = id;
         dslEl.value = '';
+        customX = {};
+        resetHistory();
         render();
         updateCurrentFileBar();
       }
@@ -2973,6 +3145,8 @@ note over Browser,API: session closed`;
       saveStore(store);
       if(clearedCurrent){
         dslEl.value = '';
+        customX = {};
+        resetHistory();
         render();
         updateCurrentFileBar();
       }
@@ -2987,6 +3161,8 @@ note over Browser,API: session closed`;
       if(id === currentFileId){
         currentFileId = null;
         dslEl.value = '';
+        customX = {};
+        resetHistory();
         render();
         updateCurrentFileBar();
       }
@@ -2998,6 +3174,8 @@ note over Browser,API: session closed`;
       const file = store.files[id];
       if(!file) return;
       dslEl.value = file.content;
+      try{ customX = file.layout ? JSON.parse(file.layout) : {}; }catch(e){ customX = {}; }
+      resetHistory();
       currentFileId = id;
       updateCurrentFileBar();
       render();
@@ -3019,9 +3197,12 @@ note over Browser,API: session closed`;
 
     autoSaveCurrentFile = function(){
       if(!currentFileId || !store.files[currentFileId]) return;
-      if(store.files[currentFileId].content === dslEl.value) return;
-      store.files[currentFileId].content = dslEl.value;
-      store.files[currentFileId].updatedAt = Date.now();
+      const file = store.files[currentFileId];
+      const layoutJson = JSON.stringify(customX);
+      if(file.content === dslEl.value && file.layout === layoutJson) return;
+      file.content = dslEl.value;
+      file.layout = layoutJson;
+      file.updatedAt = Date.now();
       saveStore(store);
     };
 
@@ -3035,7 +3216,7 @@ note over Browser,API: session closed`;
     const w = parseInt(svgEl.getAttribute('width'));
     const h = parseInt(svgEl.getAttribute('height'));
     const scale = 2;
-    const svgData = svgEl.outerHTML;
+    const svgData = exportSvgMarkup(svgEl);
     const img = new Image();
     const svgBlob = new Blob([svgData], {type:'image/svg+xml;charset=utf-8'});
     const url = URL.createObjectURL(svgBlob);
@@ -3058,6 +3239,7 @@ note over Browser,API: session closed`;
 
   // init
   dslEl.value = SAMPLE;
+  resetHistory();
   render();
 
 })();
