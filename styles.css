@@ -349,6 +349,14 @@
   #diagram-holder .step-hitzone .step-add-btn{ opacity:0; transition:opacity .1s ease; }
   #diagram-holder .step-hitzone:hover .step-add-btn{ opacity:1; }
 
+  /* Sankey: clicking a flow ribbon splits it, inserting a new node right
+     there -- this highlight (overriding the inline stroke-opacity="0.35")
+     is the only hint that a ribbon is clickable, so it needs to read as an
+     affordance on its own rather than just reacting to a hover a user found
+     by accident. */
+  #diagram-holder .sankey-link{ cursor:pointer; transition:stroke-opacity .12s ease; }
+  #diagram-holder .sankey-link:hover{ stroke-opacity:0.65; }
+
   #diagram-holder .editable-label{ cursor:text; }
 
   #diagram-holder .inline-remove-btn{ opacity:0; transition:opacity .12s ease; cursor:pointer; }
