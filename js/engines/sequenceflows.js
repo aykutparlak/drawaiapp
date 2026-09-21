@@ -1107,7 +1107,7 @@ system MktApps as Marketing Applications`;
         <div>Hover just above the first box or just below the last one and click the red <b>+</b> to add a system there.</div>
         <div>Hover a system box and click the red <b>×</b> in its corner to remove it — every process inside it goes with it.</div>
         <div>Double-click a system box to rename it in place — Enter to save, Esc to cancel.</div>
-        <div>Click the dashed <b>+</b> inside a system box to add a process to it — processes flow left to right, wrapping to a new line inside the box.</div>
+        <div>Click the dashed <b>+</b> inside a system box to add a process to it — processes flow left to right, wrapping to a new line inside the box. Drag that <b>+</b> itself anywhere in the box first, and the next process you add with it drops right there instead.</div>
         <div>Double-click a process chip to rename it, or click the red <b>×</b> on it to remove just that process.</div>
         <div>Drag a process chip anywhere inside its system box to place it freely, or drop it into a different system box to move it there.</div>`,
       parseAndLayout,

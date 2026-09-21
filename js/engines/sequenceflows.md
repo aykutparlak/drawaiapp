@@ -98,6 +98,21 @@ none yet), keeping a system's processes grouped together in the script the
 way a person would naturally type them, not just appended to the end of
 the file.
 
+**The `+` button is itself draggable**, same threshold-gated
+mousedown-drag-or-click pattern as a process chip (`onAddBtnDragStart`/
+`Move`/`End`) — drag it anywhere inside its own system's box (never into
+another system's; unlike a chip, the button is intrinsically tied to one
+system) and it carries its own free position from then on
+(`addBtnXKey`/`addBtnYKey` in `customLayout`, same box-relative,
+grid-snapped convention as a chip's `posXKey`/`posYKey`). Once it's been
+dragged, clicking it drops the new process right at that spot instead of
+appending it into the flow (`insertProcessFor`'s optional `freePos`
+argument) — and the button then hops just past the chip it placed
+(wrapping to a new row if it'd run past the box's own right edge), so
+repeated clicks lay chips out left-to-right without stamping on top of
+each other. A `+` that's never been dragged keeps behaving exactly as
+before: click adds a process into the automatic flow, no change.
+
 **A process chip is freely draggable** — press and drag it (past the small
 threshold that keeps a plain click/dblclick working) to place it anywhere
 inside its own system box, or drop it into a *different* system box to
@@ -393,3 +408,15 @@ implemented in `sequenceflows.js`.
   anywhere. The insertion-marker line from the previous version is gone
   (nothing to mark a "slot" for anymore); the ghost itself is now
   grid-snapped so it previews exactly where the chip will land.
+- Made each system's "add process" `+` button itself draggable, per
+  explicit request that a newly-added process be droppable anywhere in
+  the box too, not just wherever the automatic flow happens to put it.
+  Same free-position mechanism as a process chip (`addBtnXKey`/
+  `addBtnYKey` in `customLayout`, box-relative, grid-snapped) and the
+  same threshold-gated drag-or-click gesture (`onAddBtnDragStart`/
+  `Move`/`End`), but scoped to one system's own box (a button can't move
+  into another system's, unlike a chip). Once dragged, a click drops the
+  new process at the button's own spot (`insertProcessFor`'s new
+  `freePos` argument) and the button auto-advances past it (wrapping to
+  a new row at the box's right edge) so repeated clicks don't stack. A
+  never-dragged button is unchanged: click still appends into the flow.
