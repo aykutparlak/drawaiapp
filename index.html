@@ -26,10 +26,17 @@
       <span id="spacing-val">150px</span>
     </div>
 
-    <label class="toggle-control" for="toggle2">
+    <label class="toggle-control" for="toggle2" id="toggle2-control">
       <input type="checkbox" id="toggle2" checked>
       <span id="toggle2-label">Bottom boxes</span>
     </label>
+
+    <div class="stepper-control" id="stepper2-control" style="display:none;">
+      <span id="stepper2-label">Grid size</span>
+      <button type="button" class="stepper-btn" id="stepper2-dec" aria-label="Decrease">&#8722;</button>
+      <span id="stepper2-val">3</span>
+      <button type="button" class="stepper-btn" id="stepper2-inc" aria-label="Increase">+</button>
+    </div>
 
     <div class="action-group">
       <button class="abtn ghost hidden-control" id="btn-sample">Load example</button>
@@ -228,6 +235,7 @@
 <script src="js/core/interactions.js"></script>
 <!-- Each drawing style is a self-contained engine file; add new ones here -->
 <script src="js/engines/sequence.js"></script>
+<script src="js/engines/sequenceflows.js"></script>
 <script src="js/engines/swimlane.js"></script>
 <!-- Sankey is the one engine that reaches for an external library (see the
      header comment in js/engines/sankey.js for why) -- these two <script>

@@ -37,8 +37,21 @@
   const spacingLabelEl = document.getElementById('spacing-label');
   const spacingVal = document.getElementById('spacing-val');
   const toggle2El = document.getElementById('toggle2');
+  const toggle2ControlEl = document.getElementById('toggle2-control');
   const toggle2LabelEl = document.getElementById('toggle2-label');
+  const menuToggle2BtnEl = document.getElementById('menu-toggle2');
   const menuToggle2LabelEl = document.getElementById('menu-toggle2-label');
+  // The topbar's secondary control is a checkbox for every engine except
+  // one that opts into `toggle:{type:'stepper', ...}` instead (currently
+  // just sequenceflows' grid size) -- these five elements are that
+  // alternate numeric stepper UI, hidden unless the current engine asks
+  // for it. See "ADDING A NEW DRAWING STYLE" below for the full contract.
+  const stepper2ControlEl = document.getElementById('stepper2-control');
+  const stepper2LabelEl = document.getElementById('stepper2-label');
+  const stepper2DecEl = document.getElementById('stepper2-dec');
+  const stepper2IncEl = document.getElementById('stepper2-inc');
+  const stepper2ValEl = document.getElementById('stepper2-val');
+  let stepper2Value = 3; // current value of the stepper above, for whichever engine is using it
   const snippetsEl = document.getElementById('snippets');
   const helpEl = document.getElementById('help');
   const mainEl = document.querySelector('.main');
@@ -150,11 +163,24 @@
   //                  topbar's spacing slider; `default` is also what a
   //                  brand-new file's saved style.spacing starts at.
   //   toggle         {label, default} -- populates the topbar's one
-  //                  secondary checkbox (sequence's "Bottom boxes",
-  //                  swimlane's "Notes"). Every engine gets this one
-  //                  checkbox slot; if your DSL genuinely has nothing for
-  //                  it to control, it can be a no-op, but still provide
-  //                  the config (the chrome always renders the control).
+  //                  secondary control slot (sequence's "Bottom boxes",
+  //                  swimlane's "Notes"). Every engine gets this one slot;
+  //                  if your DSL genuinely has nothing for it to control,
+  //                  it can be a no-op, but still provide the config (the
+  //                  chrome always renders the control). `default` must be
+  //                  a boolean -- the slot renders as a checkbox, and
+  //                  parseAndLayout's third argument is that checkbox's
+  //                  `.checked`.
+  //                  Alternative: {label, type:'stepper', min, max, step,
+  //                  default} (default/min/max/step all numbers) renders
+  //                  the slot as a small +/- stepper instead of a checkbox
+  //                  -- parseAndLayout's third argument is then the
+  //                  stepper's current number. Use this when your engine's
+  //                  secondary control is inherently a small numeric range
+  //                  rather than an on/off switch (sequenceflows' system-
+  //                  resize grid size is the only engine using this so
+  //                  far) -- see js/core/render.js's updateChromeForEngine
+  //                  for exactly how the two variants differ in the DOM.
   //   snippets       [{key, label, text}, ...] -- toolbar buttons that
   //                  insert `text` at the cursor. `label` is the button
   //                  caption (e.g. "+ participant"); `key` only needs to
@@ -227,6 +253,16 @@
   //                    secondary grouping concept your DSL might have
   //                    (swimlane's lanes). Skip both entirely if your
   //                    diagram type has no such grouping.
+  //   removeNode(id)
+  //   removeLane(name)
+  //                    Delete the shape/lane from the DSL (same edit a click
+  //                    on its on-canvas [data-node]/[data-lane] "x" already
+  //                    makes -- point this at that same internal function).
+  //                    Whichever of these is provided makes the properties
+  //                    panel show a "Delete" button for the selected node/
+  //                    lane, so removal isn't only reachable by finding the
+  //                    small on-canvas x. Omit either to leave that panel
+  //                    without a delete action for that kind.
   //
   // ---- DOM/CSS conventions your parseAndLayout output must follow, to
   //      get the generic interactions in interactions.js for free ----

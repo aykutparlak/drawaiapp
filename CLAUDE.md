@@ -1,10 +1,10 @@
 # Draw — live diagram drafting
 
 A single-page app for hand-drafting diagrams from a small text DSL, live, with
-drag/click/dblclick editing on the rendered result. Currently ships two
-drawing styles (Sequence, Swimlane); the architecture is built specifically
-so more can be added as fully independent, isolated modules — read this file
-before adding one.
+drag/click/dblclick editing on the rendered result. Currently ships three
+drawing styles (Sequence, Swimlane, Sankey); the architecture is built
+specifically so more can be added as fully independent, isolated modules —
+read this file before adding one.
 
 ## Deployment: zero-build static site on Vercel
 
@@ -63,6 +63,8 @@ js/core/                   the shared shell -- engine-agnostic
 js/engines/                 one file per drawing style -- fully isolated
   sequence.js                 Sequence diagrams
   swimlane.js                  Swimlane diagrams
+  sankey.js                     Sankey diagrams -- the one engine with an
+                                 external dependency, see below
   <yours>.js                    <- add new styles here, nothing else
 ```
 
@@ -72,6 +74,14 @@ self-registers via `registerEngine(...)` at its own end), then
 `render.js`/`history.js`/`chrome.js`/`properties-panel.js`/
 `new-diagram-modal.js`, then `persistence.js` last (it calls things from
 every file above it, synchronously, as soon as it loads).
+
+**Sankey is the one exception to "zero dependencies."** It's the one engine
+that reaches for an external library (reimplementing the Sankey layout
+algorithm by hand is a lot more than a `parseAndLayout`), loaded as two more
+classic `<script>` tags from jsDelivr right before `sankey.js` itself:
+`d3@7.9.0` and `d3-sankey@0.12.3`. If you add another engine that needs a
+similar layout library, follow the same pattern — CDN `<script>` tag(s)
+immediately before that engine's own tag, not a shared/global dependency.
 
 ## Adding a new drawing style
 

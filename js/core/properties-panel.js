@@ -82,7 +82,7 @@
         if(!currentEngine.getLaneLabel) return null;
         const label = currentEngine.getLaneLabel(id);
         if(label === undefined) return null;
-        return {kind:'lane', id, label, kindLabel:'Lane', colorable:true, shapeOptions:null, currentShape:null};
+        return {kind:'lane', id, label, kindLabel:'Lane', colorable:true, shapeOptions:null, currentShape:null, removable: !!currentEngine.removeLane};
       }
       if(kind === 'node'){
         if(!currentEngine.getNodeLabel) return null;
@@ -95,14 +95,28 @@
           if(currentShape === 'step' || currentShape === 'decision') shapeOptions = ['step','decision'];
           if(currentShape === 'end') colorable = false; // fixed semantic red, not themeable
         }
-        return {kind:'node', id, label, kindLabel, colorable, shapeOptions, currentShape};
+        return {kind:'node', id, label, kindLabel, colorable, shapeOptions, currentShape, removable: !!currentEngine.removeNode};
       }
       return null;
+    }
+
+    // Marks whichever [data-node]/[data-lane] is currently selected with
+    // .is-selected (see styles.css) so its close button stays visible
+    // without the user having to keep hovering it -- the SVG is fully
+    // replaced on every render, so this has to be re-applied every time,
+    // not just when the selection itself changes.
+    function markSelectedOnCanvas(){
+      holder.querySelectorAll('.is-selected').forEach(el=> el.classList.remove('is-selected'));
+      if(!selectedElement) return;
+      const attr = selectedElement.kind === 'lane' ? 'data-lane' : 'data-node';
+      const el = holder.querySelector(`[${attr}="${CSS.escape(selectedElement.id)}"]`);
+      if(el) el.classList.add('is-selected');
     }
 
     function renderPropertiesPanel(){
       const info = getSelectedElementInfo();
       if(selectedElement && !info) selectedElement = null;
+      markSelectedOnCanvas();
 
       if(!selectedElement){
         titleEl.textContent = 'Diagram style';
@@ -143,11 +157,22 @@
           <div class="swatch-group" id="element-swatch-group"></div>` : `
           <div class="prop-label">Color</div>
           <div class="prop-empty-hint" style="padding:0;">Fixed — an end marker always stays this color.</div>`}
-        </div>`;
+        </div>
+        ${info.removable ? `
+        <div class="prop-section">
+          <button type="button" class="prop-delete-btn" id="prop-delete-btn">Delete ${esc(info.kindLabel.toLowerCase())}</button>
+        </div>` : ''}`;
 
       document.getElementById('prop-deselect-btn').addEventListener('click', ()=>{
         if(selectElement) selectElement(null);
       });
+
+      if(info.removable){
+        document.getElementById('prop-delete-btn').addEventListener('click', ()=>{
+          if(info.kind === 'lane') currentEngine.removeLane(info.id);
+          else currentEngine.removeNode(info.id);
+        });
+      }
 
       const textInput = document.getElementById('prop-text-input');
       function applyText(){

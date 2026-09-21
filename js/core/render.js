@@ -51,7 +51,8 @@
   function doRender(){
     if(autoSaveCurrentFile) autoSaveCurrentFile();
     try{
-      const svg = currentEngine.parseAndLayout(dslEl.value, parseInt(spacingEl.value, 10), toggle2El.checked);
+      const secondaryValue = currentEngine.toggle.type === 'stepper' ? stepper2Value : toggle2El.checked;
+      const svg = currentEngine.parseAndLayout(dslEl.value, parseInt(spacingEl.value, 10), secondaryValue);
       holder.innerHTML = svg;
       errbar.classList.remove('show');
       errbar.textContent = '';
@@ -124,9 +125,21 @@
     spacingEl.step = currentEngine.spacing.step;
     spacingEl.value = currentEngine.spacing.default;
     spacingVal.textContent = currentEngine.spacing.default + 'px';
-    toggle2LabelEl.textContent = currentEngine.toggle.label;
-    menuToggle2LabelEl.textContent = currentEngine.toggle.label;
-    toggle2El.checked = currentEngine.toggle.default;
+    if(currentEngine.toggle.type === 'stepper'){
+      toggle2ControlEl.style.display = 'none';
+      menuToggle2BtnEl.style.display = 'none';
+      stepper2ControlEl.style.display = '';
+      stepper2LabelEl.textContent = currentEngine.toggle.label;
+      stepper2Value = currentEngine.toggle.default;
+      stepper2ValEl.textContent = stepper2Value;
+    } else {
+      stepper2ControlEl.style.display = 'none';
+      menuToggle2BtnEl.style.display = '';
+      toggle2ControlEl.style.display = '';
+      toggle2LabelEl.textContent = currentEngine.toggle.label;
+      menuToggle2LabelEl.textContent = currentEngine.toggle.label;
+      toggle2El.checked = currentEngine.toggle.default;
+    }
     helpEl.innerHTML = currentEngine.helpHTML;
   }
 

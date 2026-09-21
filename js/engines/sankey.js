@@ -499,7 +499,8 @@ Operating Profit -> Final Profit: 15`;
         if(!lastGraph) return undefined;
         return lastGraph.nodes.some(n=>n.name===name) ? name : undefined;
       },
-      renameNode
+      renameNode,
+      removeNode
     };
   })();
 

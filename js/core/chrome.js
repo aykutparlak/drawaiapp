@@ -21,6 +21,15 @@
   });
   toggle2El.addEventListener('change', doRender);
 
+  function nudgeStepper2(dir){
+    const cfg = currentEngine.toggle; // only ever clickable while cfg.type==='stepper'
+    stepper2Value = Math.max(cfg.min, Math.min(cfg.max, stepper2Value + dir*cfg.step));
+    stepper2ValEl.textContent = stepper2Value;
+    render();
+  }
+  stepper2DecEl.addEventListener('click', ()=> nudgeStepper2(-1));
+  stepper2IncEl.addEventListener('click', ()=> nudgeStepper2(1));
+
   dslEl.addEventListener('keydown', (e)=>{
     if(e.key === 'Tab'){
       e.preventDefault();

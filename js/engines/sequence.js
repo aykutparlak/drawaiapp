@@ -159,6 +159,15 @@ note over Browser,API: session closed`;
       const rightBound = Math.max(...order.map(p=>p.x)) + maxHalfW + 30;
       const diagramWidth = rightBound + 30;
 
+      // leftBound/rightBound/diagramWidth above are sized from the
+      // participant lifelines only (used for lifeline length and title
+      // centering) -- but a "note left of"/"note right of" the outermost
+      // participant draws further out than that, and would otherwise get
+      // clipped by the canvas. Track the actual drawn extent separately and
+      // use it for the final canvas size (viewX/viewW below) instead.
+      let contentLeft = leftBound;
+      let contentRight = diagramWidth;
+
       const titleLines = title ? title.split(/<br\s*\/?>/i).map(s=>s.trim()).filter(l=>l.length) : [];
       let titleH, titleSvg;
       if(titleLines.length === 0){
@@ -190,6 +199,20 @@ note over Browser,API: session closed`;
       let y = titleH + headerH + 26;
 
       const svgParts = [];
+      // An arrow's own group (.connector-hit) is rendered in its own pass,
+      // above the link handles (see the final svg template below) --
+      // otherwise a short arrow between adjacent participants can end at
+      // almost the same point as the destination's link-handle column
+      // (used to drag-start a *new* connection), and that handle, being on
+      // top, would swallow clicks meant to select the existing arrow.
+      const connectorParts = [];
+      // An arrow's delete badge is rendered separately, in its own pass
+      // *after every other element* (see the final svg template below),
+      // keyed back to its line by data-line -- otherwise, with several
+      // arrows/self-loops on one diagram, whichever happens to be drawn
+      // last could sit on top of an earlier arrow's badge and swallow
+      // clicks meant for it.
+      const connectorBadgeParts = [];
       const activationStacks = {};
       order.forEach(p=> activationStacks[p.name] = []);
 
@@ -241,6 +264,21 @@ note over Browser,API: session closed`;
         return `<circle cx="${cx}" cy="${cy}" r="${BADGE_R}" fill="#D0453A" stroke="#FFFFFF" stroke-width="1.5"/>
                 <text x="${cx}" y="${cy+4}" text-anchor="middle" font-family="IBM Plex Mono, monospace"
                       font-size="11" font-weight="700" fill="#FFFFFF">${num}</text>`;
+      }
+
+      // Small red "x" badge for an arrow's delete button -- same visual as
+      // the participant remove button, but built inline here since there's
+      // no shared per-shape id (an arrow is only addressable by line index).
+      // Pushed into connectorBadgeParts (rendered after everything else,
+      // see above) rather than nested in the arrow's own group, and keyed
+      // back to it by data-line since it's no longer a descendant.
+      function pushConnectorRemoveBtn(lineIndex, cx, cy){
+        connectorBadgeParts.push(`
+          <g class="connector-hit-badge remove-btn" data-line="${lineIndex}">
+            <circle cx="${cx}" cy="${cy}" r="8" fill="#D0453A" stroke="#FFFFFF" stroke-width="1.3"/>
+            <text x="${cx}" y="${cy+3.5}" text-anchor="middle" font-family="IBM Plex Mono, monospace"
+                  font-size="10.5" font-weight="700" fill="#FFFFFF" style="pointer-events:none;">&#215;</text>
+          </g>`);
       }
 
       const eventYMap = [];
@@ -353,6 +391,8 @@ note over Browser,API: session closed`;
             bw = Math.max(110, Math.max(...textLines.map(l=>l.length))*7 + 24);
             bx = byName[names[0]].x + 20;
           }
+          contentLeft = Math.min(contentLeft, bx - 10);
+          contentRight = Math.max(contentRight, bx + bw + 10);
           let g = `<rect x="${bx}" y="${y}" width="${bw}" height="${boxH}" rx="3"
                    fill="var(--panel,#F7F8FA)" stroke="var(--amber,#2F6FED)" stroke-width="1.1"/>`;
           textLines.forEach((tl,idx)=>{
@@ -390,21 +430,21 @@ note over Browser,API: session closed`;
             const textEls = fit.lines.map((ln, idx)=>
               `<text x="${x+10}" y="${firstBaseline + idx*lineHeight}" font-family="IBM Plex Mono, monospace" font-size="${fit.fontSize}" fill="#1F2430">${esc(ln)}</text>`
             ).join('\n');
-            const maxLen = Math.max(1, ...fit.lines.map(l=>l.length));
-            const hitW = Math.max(50, maxLen * fit.fontSize * 0.62 + 14);
-            const hitH = (fit.lines.length-1)*lineHeight + fit.fontSize + (wrapped ? 16 : 12);
-            const hitY = firstBaseline - fit.fontSize - 2;
-            const labelSvg = `<g class="editable-label" data-edit="msg" data-line="${i}">
-                <rect x="${x+6}" y="${hitY}" width="${hitW}" height="${hitH}" fill="transparent"/>
+            // A self-loop (from === to) draws its curve/label/delete-badge
+            // to the right of its participant -- same clipping risk as a
+            // "note right of" the outermost participant.
+            const loopMaxLen = Math.max(1, ...fit.lines.map(l=>l.length));
+            contentRight = Math.max(contentRight, x + loopW + 30, x + 10 + loopMaxLen*fit.fontSize*0.62 + 10);
+            const loopPathD = `M ${x} ${y} C ${x+loopW} ${y}, ${x+loopW} ${y+34}, ${x} ${y+34}`;
+            svgParts.push(badge);
+            connectorParts.push(`
+              <g class="connector-hit" data-line="${i}">
+                <path d="${loopPathD}" fill="none" stroke="var(--amber,#2F6FED)" stroke-width="1.6" stroke-dasharray="${dashed?'6,4':'0'}"
+                      marker-end="url(#${async?'arrowOpen':'arrowFilled'})"/>
+                <path d="${loopPathD}" fill="none" stroke="transparent" stroke-width="12"/>
                 ${textEls}
-              </g>`;
-            svgParts.push(`
-              <path d="M ${x} ${y} C ${x+loopW} ${y}, ${x+loopW} ${y+34}, ${x} ${y+34}"
-                    fill="none" stroke="var(--amber,#2F6FED)" stroke-width="1.6" stroke-dasharray="${dashed?'6,4':'0'}"
-                    marker-end="url(#${async?'arrowOpen':'arrowFilled'})"/>
-              ${labelSvg}
-              ${badge}
-            `);
+              </g>`);
+            pushConnectorRemoveBtn(i, x+loopW+16, y+10);
             y += wrapped ? 50 + (fit.lines.length-1)*lineHeight : 50;
             continue;
           }
@@ -428,20 +468,15 @@ note over Browser,API: session closed`;
           const textEls = fit.lines.map((ln, idx)=>
             `<text x="${midX}" y="${topBaseline + idx*lineHeight2}" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="${fit.fontSize}" fill="#1F2430">${esc(ln)}</text>`
           ).join('\n');
-          const maxLen2 = Math.max(1, ...fit.lines.map(l=>l.length));
-          const hitW2 = Math.max(50, maxLen2 * fit.fontSize * 0.62 + 14);
-          const hitH2 = (fit.lines.length-1)*lineHeight2 + fit.fontSize + (wrapped ? 18 : 12);
-          const hitY2 = topBaseline - fit.fontSize - 2;
-          const labelSvg = `<g class="editable-label" data-edit="msg" data-line="${i}">
-              <rect x="${midX-hitW2/2}" y="${hitY2}" width="${hitW2}" height="${hitH2}" fill="transparent"/>
-              ${textEls}
-            </g>`;
 
-          svgParts.push(`
-            ${labelSvg}
-            ${messageLine(lineStartX, txAdj, y, dashed, async)}
-            ${badge}
-          `);
+          svgParts.push(badge);
+          connectorParts.push(`
+            <g class="connector-hit" data-line="${i}">
+              ${messageLine(lineStartX, txAdj, y, dashed, async)}
+              <line x1="${lineStartX}" y1="${y}" x2="${txAdj}" y2="${y}" stroke="transparent" stroke-width="12"/>
+              ${textEls}
+            </g>`);
+          pushConnectorRemoveBtn(i, midX+34, topBaseline-fit.fontSize-6);
           y += wrapped ? 46 + (fit.lines.length-1)*lineHeight2 : 46;
           continue;
         }
@@ -481,8 +516,8 @@ note over Browser,API: session closed`;
           </marker>
         </defs>`;
 
-      const viewX = Math.min(0, leftBound - 10);
-      const viewW = diagramWidth - viewX;
+      const viewX = Math.min(0, contentLeft - 10);
+      const viewW = contentRight - viewX;
 
       const addZones = [];
       for(let idx=0; idx<=order.length; idx++){
@@ -522,6 +557,8 @@ note over Browser,API: session closed`;
           ${addZones.join('')}
           ${svgParts.join('\n')}
           ${linkHandles}
+          ${connectorParts.join('\n')}
+          ${connectorBadgeParts.join('\n')}
         </svg>`;
 
       return svg;
@@ -698,26 +735,6 @@ note over Browser,API: session closed`;
 
     // ---------------- inline edit: message / note / block label ----------------
 
-    function startLabelEdit(g){
-      const lineIndex = parseInt(g.getAttribute('data-line'), 10);
-      const rawLines = dslEl.value.split('\n');
-      const rawLine = rawLines[lineIndex] || '';
-      const leading = rawLine.match(/^\s*/)[0];
-      const m = rawLine.trim().match(ARROW_LINE_RE);
-      if(!m) return;
-      const [, from, arrow, to, currentLabel] = m;
-      openInlineEditor({
-        anchorRect: g.getBoundingClientRect(),
-        initialValue: currentLabel,
-        onCommit: (val)=>{
-          const lines = dslEl.value.split('\n');
-          lines[lineIndex] = `${leading}${from}${arrow}${to}: ${val}`;
-          dslEl.value = lines.join('\n');
-          doRender();
-        }
-      });
-    }
-
     function startParticipantRename(g){
       const name = g.getAttribute('data-node');
       if(!name) return;
@@ -780,6 +797,14 @@ note over Browser,API: session closed`;
     }
 
     function removeNote(lineIndex){
+      const lines = dslEl.value.split('\n');
+      if(lineIndex < 0 || lineIndex >= lines.length) return;
+      lines.splice(lineIndex, 1);
+      dslEl.value = lines.join('\n');
+      doRender();
+    }
+
+    function removeConnector(lineIndex){
       const lines = dslEl.value.split('\n');
       if(lineIndex < 0 || lineIndex >= lines.length) return;
       lines.splice(lineIndex, 1);
@@ -1027,6 +1052,8 @@ note over Browser,API: session closed`;
       attachRemoveHandlers(svg, (btn)=>{
         const nodeG = btn.closest('[data-node]');
         if(nodeG){ removeParticipant(nodeG.getAttribute('data-node')); return; }
+        const connBadge = btn.closest('.connector-hit-badge');
+        if(connBadge){ removeConnector(parseInt(connBadge.getAttribute('data-line'), 10)); return; }
         const editG = btn.closest('.editable-label');
         if(editG){
           const kind = editG.getAttribute('data-edit');
@@ -1039,10 +1066,35 @@ note over Browser,API: session closed`;
       attachAddHandlers(svg, insertParticipantAt);
 
       attachEditableHandlers(svg, {
-        msg: startLabelEdit,
         note: startNoteEdit,
         block: startBlockLabelEdit
       });
+
+      // An arrow has no stable id to route through the shared node
+      // selection system (only a line index, which shifts on unrelated
+      // edits) -- so its "selected, show delete" state is kept local to
+      // this render: click shows its badge (data-line keyed, since the
+      // badge is rendered separately from the arrow -- see
+      // connectorBadgeParts above), clicking a different arrow or the
+      // background hides it again.
+      function clearConnectorSelection(){
+        svg.querySelectorAll('.connector-hit.is-selected').forEach(el=> el.classList.remove('is-selected'));
+        svg.querySelectorAll('.connector-hit-badge.is-shown').forEach(el=> el.classList.remove('is-shown'));
+      }
+      svg.querySelectorAll('.connector-hit').forEach(g=>{
+        g.addEventListener('click', (e)=>{
+          e.stopPropagation();
+          const already = g.classList.contains('is-selected');
+          clearConnectorSelection();
+          if(!already){
+            g.classList.add('is-selected');
+            const badge = svg.querySelector(`.connector-hit-badge[data-line="${g.getAttribute('data-line')}"]`);
+            if(badge) badge.classList.add('is-shown');
+          }
+        });
+      });
+      const bgEl = svg.querySelector('.diagram-bg');
+      if(bgEl) bgEl.addEventListener('click', clearConnectorSelection);
 
       attachLinkHandleHandlers(svg, (g, pressClientY)=>{
         const rect = g.querySelector('rect');
@@ -1137,17 +1189,18 @@ note over Browser,API: session closed`;
         <div>Hover the top row between (or beside) boxes and click the red <b>+</b> to insert a new participant there.</div>
         <div>Hover a participant box and click the red <b>×</b> in its corner to remove it — its arrows, notes, and activations go with it.</div>
         <div>Hover a lifeline, press the blue <b>+</b> and drag — it snaps to the nearest lifeline. Release and pick the arrow type; it's added right away with a default message.</div>
-        <div>Double-click any arrow's message text to edit it right there on the diagram — Enter to save, Esc to cancel.</div>
-        <div>Double-click a participant box to rename it in place — Enter to save, Esc to cancel.</div>
+        <div>Double-click a participant box to rename it in place — Enter to save, Esc to cancel. An arrow's message text is edited by changing it in the script.</div>
         <div>Drag over an empty area of the canvas to select it, then choose Loop, Alt/Else, Opt, Par, or Note — the frame stays exactly as wide as you drew it.</div>
         <div>Double-click a note or a loop/alt/opt/par tab to edit its text the same way.</div>
-        <div>Hover a note or a block frame and click the red <b>×</b> in its corner to remove it — a removed block keeps the messages inside, just un-wrapped.</div>`,
+        <div>Hover a note or a block frame and click the red <b>×</b> in its corner to remove it — a removed block keeps the messages inside, just un-wrapped.</div>
+        <div>Click an arrow to reveal a red <b>×</b> next to it and remove just that arrow.</div>`,
       parseAndLayout,
       insertPrimaryAt: insertParticipantAt,
       attach,
       // ---- uniform hooks the right-hand properties panel uses ----
       getNodeLabel: (id)=>{ const p = lastOrder.find(x=>x.name===id); return p ? p.label : undefined; },
-      renameNode: renameParticipant
+      renameNode: renameParticipant,
+      removeNode: removeParticipant
     };
   })();
 

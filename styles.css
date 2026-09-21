@@ -165,6 +165,41 @@
   }
   .toggle-control span{ letter-spacing:0.3px; }
 
+  .stepper-control{
+    display:flex;
+    align-items:center;
+    gap:6px;
+    font-family:var(--mono);
+    font-size:11px;
+    color:var(--ink-muted);
+    white-space:nowrap;
+  }
+  .stepper-control > span:first-child{ letter-spacing:0.3px; }
+  .stepper-control #stepper2-val{
+    min-width:14px;
+    text-align:center;
+    color:var(--ink);
+    font-weight:600;
+  }
+  .stepper-btn{
+    width:20px;
+    height:20px;
+    border-radius:5px;
+    border:1px solid var(--line-soft,#D6DAE1);
+    background:var(--panel,#F7F8FA);
+    color:var(--ink);
+    font-family:var(--mono);
+    font-size:13px;
+    line-height:1;
+    cursor:pointer;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:0;
+  }
+  .stepper-btn:hover{ border-color:var(--amber); color:var(--amber); }
+  .stepper-btn:active{ transform:translateY(1px); }
+
   .action-group{ display:flex; gap:8px; }
   .abtn{
     font-family:var(--sans);
@@ -340,6 +375,23 @@
 
   #diagram-holder .remove-btn{ opacity:0; transition:opacity .12s ease; cursor:pointer; }
   #diagram-holder .has-remove:hover .remove-btn{ opacity:1; }
+
+  /* Whatever the user just clicked (a participant, a step, a lane/row --
+     any [data-node]/[data-lane] the shared selection system marks with
+     .is-selected, see properties-panel.js) keeps its close button visible
+     even after the mouse moves away, instead of requiring the user to keep
+     hovering exactly over it to find the delete control. */
+  #diagram-holder .is-selected > .remove-btn{ opacity:1; }
+
+  /* A connector's delete badge is rendered as its own top-level element,
+     separate from the connector line/label it belongs to (see
+     connectorBadgeParts in swimlane.js / sequence.js) -- so it isn't ever
+     covered by another connector's invisible click-hit stroke -- and is
+     therefore keyed to a data-line match in JS rather than DOM nesting, so
+     it needs its own visibility class instead of the .is-selected > rule
+     above. */
+  #diagram-holder .connector-hit-badge.is-shown{ opacity:1; }
+  #diagram-holder .connector-hit{ cursor:pointer; }
 
   #diagram-holder .link-handle{ cursor:pointer; }
   #diagram-holder .link-handle .link-add-btn{ opacity:0; transition:opacity .1s ease; }
@@ -976,3 +1028,21 @@
     margin-bottom:2px;
   }
   .prop-deselect:hover{ color:var(--amber); }
+
+  .prop-delete-btn{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:6px;
+    width:100%;
+    font-family:var(--sans);
+    font-size:12.5px;
+    font-weight:600;
+    color:var(--danger);
+    background:rgba(208,69,58,0.08);
+    border:1px solid rgba(208,69,58,0.25);
+    border-radius:6px;
+    padding:8px 10px;
+    cursor:pointer;
+  }
+  .prop-delete-btn:hover{ background:rgba(208,69,58,0.15); border-color:var(--danger); }

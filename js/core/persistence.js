@@ -382,6 +382,11 @@
       }
       if(style && typeof style.secondary === 'boolean'){
         toggle2El.checked = style.secondary;
+      } else if(style && typeof style.secondary === 'number'){
+        // engines whose `toggle` is {type:'stepper', ...} (currently just
+        // sequenceflows) save a number here instead of a boolean
+        stepper2Value = style.secondary;
+        stepper2ValEl.textContent = stepper2Value;
       }
       accentColor = (style && PALETTE[style.accent]) ? style.accent : 'blue';
       customColors = (style && style.colors) ? {...style.colors} : {};
@@ -420,7 +425,7 @@
       const style = {
         layout: {...customLayout},
         spacing: parseInt(spacingEl.value, 10),
-        secondary: toggle2El.checked,
+        secondary: currentEngine.toggle.type === 'stepper' ? stepper2Value : toggle2El.checked,
         accent: accentColor,
         colors: {...customColors}
       };

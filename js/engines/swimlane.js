@@ -186,6 +186,22 @@ note over s2: verify against warehouse system`;
       order.forEach(n=>{ n.y = laneByName[n.laneName].cy; });
 
       const svgParts = [];
+      // Connectors get their own array, rendered above the add/step
+      // hotzones and link handles (see the final svg template below) --
+      // otherwise a connector between two adjacent same-lane nodes sits at
+      // the exact same point as that gap's step-hitzone "+", and the
+      // hotzone (being on top) would swallow every click meant to select
+      // the connector.
+      const connectorParts = [];
+      // A connector's delete badge is rendered separately, in its own pass
+      // *after every connector's line*, keyed back to its line by
+      // data-line -- otherwise, with several connectors on one diagram,
+      // whichever connector's line happens to be drawn last would sit on
+      // top of an earlier connector's badge and swallow clicks meant for
+      // it (this is exactly what happens with the sample script's
+      // "s4->s2: reorder" backward connector crossing near "s2->d1"'s
+      // badge).
+      const connectorBadgeParts = [];
 
       function rectEdge(cx,cy,hw,hh,tx,ty){
         const dx = tx-cx, dy = ty-cy;
@@ -237,6 +253,19 @@ note over s2: verify against warehouse system`;
           titleSvg += `<text x="${(laneAreaLeft+rightBound)/2}" y="${24+13*k}" text-anchor="middle" font-family="IBM Plex Mono, monospace"
                       font-size="10.5" fill="#767E8C">${esc(titleLines[k])}</text>`;
         }
+      }
+
+      // Small red "x" badge for a connector's delete button -- pushed into
+      // connectorBadgeParts (rendered after every connector line, see
+      // above) rather than nested in its own connector's group, and keyed
+      // back to it by data-line since it's no longer a descendant.
+      function pushConnectorRemoveBtn(lineIndex, cx, cy){
+        connectorBadgeParts.push(`
+          <g class="connector-hit-badge remove-btn" data-line="${lineIndex}">
+            <circle cx="${cx}" cy="${cy}" r="8" fill="#D0453A" stroke="#FFFFFF" stroke-width="1.3"/>
+            <text x="${cx}" y="${cy+3.5}" text-anchor="middle" font-family="IBM Plex Mono, monospace"
+                  font-size="10.5" font-weight="700" fill="#FFFFFF" style="pointer-events:none;">&#215;</text>
+          </g>`);
       }
 
       function nodeShapeSvg(n){
@@ -291,21 +320,21 @@ note over s2: verify against warehouse system`;
             const r = 22;
             const cx = A.x + A._w/2 + r;
             const cy = A.y;
-            svgParts.push(`<path d="M ${A.x+A._w/2} ${A.y-8} C ${cx+10} ${cy-20}, ${cx+10} ${cy+20}, ${A.x+A._w/2} ${A.y+8}"
-                fill="none" stroke="var(--amber,#2F6FED)" stroke-width="1.6" stroke-dasharray="${dashed?'6,4':'0'}" marker-end="url(#${markerId})"/>`);
+            const pathD = `M ${A.x+A._w/2} ${A.y-8} C ${cx+10} ${cy-20}, ${cx+10} ${cy+20}, ${A.x+A._w/2} ${A.y+8}`;
             const labelText = label || '';
-            const hitW = Math.max(50, labelText.length*7+14);
-            svgParts.push(`<g class="editable-label" data-edit="conn" data-line="${i}">
-                <rect x="${cx-4}" y="${cy-10}" width="${hitW}" height="20" fill="transparent"/>
-                ${labelText ? `<text x="${cx+4}" y="${cy+4}" font-family="IBM Plex Mono, monospace" font-size="11" fill="#1F2430">${esc(labelText)}</text>` : ''}
+            const textSvg = labelText ? `<text x="${cx+4}" y="${cy+4}" font-family="IBM Plex Mono, monospace" font-size="11" fill="#1F2430">${esc(labelText)}</text>` : '';
+            connectorParts.push(`
+              <g class="connector-hit" data-line="${i}">
+                <path d="${pathD}" fill="none" stroke="var(--amber,#2F6FED)" stroke-width="1.6" stroke-dasharray="${dashed?'6,4':'0'}" marker-end="url(#${markerId})"/>
+                <path d="${pathD}" fill="none" stroke="transparent" stroke-width="12"/>
+                ${textSvg}
               </g>`);
+            pushConnectorRemoveBtn(i, cx+30, cy-18);
             continue;
           }
 
           const p1 = edgePoint(A, B.x, B.y);
           const p2 = edgePoint(B, A.x, A.y);
-          svgParts.push(`<line x1="${p1.x}" y1="${p1.y}" x2="${p2.x}" y2="${p2.y}" stroke="var(--amber,#2F6FED)" stroke-width="1.6"
-              stroke-dasharray="${dashed?'6,4':'0'}" marker-end="url(#${markerId})"/>`);
           const midX = (p1.x+p2.x)/2, midY = (p1.y+p2.y)/2;
           const fit = fitLabel(label || '', 140);
           const lh = fit.fontSize + 3;
@@ -314,13 +343,14 @@ note over s2: verify against warehouse system`;
           const textEls = fit.lines.map((ln,idx)=>
             `<text x="${midX}" y="${firstY+idx*lh}" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="${fit.fontSize}" fill="#1F2430">${esc(ln)}</text>`
           ).join('');
-          const maxLen = Math.max(1, ...fit.lines.map(l=>l.length));
-          const hitW2 = Math.max(50, maxLen*fit.fontSize*0.62+14);
-          const hitH2 = totalTextH + fit.fontSize + 12;
-          svgParts.push(`<g class="editable-label" data-edit="conn" data-line="${i}">
-              <rect x="${midX-hitW2/2}" y="${firstY-fit.fontSize-2}" width="${hitW2}" height="${hitH2}" fill="transparent"/>
+          connectorParts.push(`
+            <g class="connector-hit" data-line="${i}">
+              <line x1="${p1.x}" y1="${p1.y}" x2="${p2.x}" y2="${p2.y}" stroke="var(--amber,#2F6FED)" stroke-width="1.6"
+                  stroke-dasharray="${dashed?'6,4':'0'}" marker-end="url(#${markerId})"/>
+              <line x1="${p1.x}" y1="${p1.y}" x2="${p2.x}" y2="${p2.y}" stroke="transparent" stroke-width="12"/>
               ${textEls}
             </g>`);
+          pushConnectorRemoveBtn(i, midX+34, firstY-fit.fontSize-6);
           continue;
         }
         if((m = t.match(NOTE_LINE_RE))){
@@ -373,14 +403,39 @@ note over s2: verify against warehouse system`;
           </g>`);
       }
 
-      const stepZones = lanes.map(l => `
-        <g class="step-hitzone" data-lane-append="${esc(l.name)}">
-          <rect x="${rightBound-40}" y="${l.top}" width="40" height="${LANE_H}" fill="transparent"/>
-          <circle class="step-add-btn" cx="${rightBound-20}" cy="${l.cy}" r="9" fill="#2F6FED"/>
-          <text class="step-add-btn" x="${rightBound-20}" y="${l.cy+4}" text-anchor="middle"
-                font-family="IBM Plex Mono, monospace" font-size="13" font-weight="700" fill="#FFFFFF"
-                style="pointer-events:none;">+</text>
-        </g>`).join('');
+      // One hover "+" per GAP in a lane's own node sequence -- before its
+      // first node, between every adjacent pair, and after its last -- so a
+      // new item can be dropped in at any horizontal position, not only
+      // appended at the far end. An empty lane gets a single zone near its
+      // label so it always has an entry point.
+      function laneGapZones(l, nodesInLane){
+        if(nodesInLane.length === 0){
+          return [{x: nodesLeft + 40, beforeId: null, afterId: null}];
+        }
+        const zones = [];
+        const first = nodesInLane[0];
+        zones.push({x: Math.max(nodesLeft + 20, first.x - first._w/2 - 34), beforeId: first.id, afterId: null});
+        for(let i=0; i<nodesInLane.length-1; i++){
+          const a = nodesInLane[i], b = nodesInLane[i+1];
+          zones.push({x: (a.x + b.x)/2, beforeId: b.id, afterId: a.id});
+        }
+        const last = nodesInLane[nodesInLane.length-1];
+        zones.push({x: last.x + last._w/2 + 34, beforeId: null, afterId: last.id});
+        return zones;
+      }
+
+      const stepZones = lanes.map(l => {
+        const nodesInLane = order.filter(n => n.laneName === l.name);
+        return laneGapZones(l, nodesInLane).map(z => `
+          <g class="step-hitzone" data-lane-append="${esc(l.name)}"
+             data-before-id="${z.beforeId ? esc(z.beforeId) : ''}" data-after-id="${z.afterId ? esc(z.afterId) : ''}">
+            <rect x="${z.x-14}" y="${l.top}" width="28" height="${LANE_H}" fill="transparent"/>
+            <circle class="step-add-btn" cx="${z.x}" cy="${l.cy}" r="9" fill="#2F6FED"/>
+            <text class="step-add-btn" x="${z.x}" y="${l.cy+4}" text-anchor="middle"
+                  font-family="IBM Plex Mono, monospace" font-size="13" font-weight="700" fill="#FFFFFF"
+                  style="pointer-events:none;">+</text>
+          </g>`).join('');
+      }).join('');
 
       const linkHandles = order.map(n => `
         <g class="link-handle" data-linksrc="${esc(n.id)}">
@@ -401,6 +456,8 @@ note over s2: verify against warehouse system`;
           ${svgParts.join('\n')}
           ${linkHandles}
           ${stepZones}
+          ${connectorParts.join('\n')}
+          ${connectorBadgeParts.join('\n')}
         </svg>`;
 
       return svg;
@@ -488,22 +545,61 @@ note over s2: verify against warehouse system`;
       doRender();
     }
 
-    function appendStepToLane(laneName){
+    // A lane's own "+" hotzones (one per gap between its nodes -- see
+    // laneGapZones) can add any of the four node kinds, not just a plain
+    // step -- the id prefix and default label are picked per kind so e.g.
+    // adding a "start" doesn't get labeled "New step". See
+    // showNodeTypePicker for the type-choice popup that calls this.
+    const NODE_KIND_PREFIX = {step:'s', decision:'d', start:'st', end:'e'};
+    const NODE_KIND_DEFAULT_LABEL = {step:'New step', decision:'Condition?', start:'Start', end:'End'};
+
+    // Inserts the new node's declaration line right at the gap the user
+    // clicked: immediately before `beforeId`'s line if given, else
+    // immediately after `afterId`'s line if given, else (an empty lane)
+    // after the last node/lane declaration -- same fallback the original
+    // "append to lane" behavior used.
+    function insertNodeInLane(laneName, kind, beforeId, afterId){
       const ids = lastOrder.map(n=>n.id);
+      const prefix = NODE_KIND_PREFIX[kind] || 's';
       let n = 1;
-      while(ids.includes('s'+n)) n++;
-      const newId = 's' + n;
-      const newLabel = 'New step';
-      const newLine = `step ${newId} in ${laneName}: ${newLabel}`;
+      while(ids.includes(prefix+n)) n++;
+      const newId = prefix + n;
+      const newLabel = NODE_KIND_DEFAULT_LABEL[kind] || 'New step';
+      const newLine = `${kind} ${newId} in ${laneName}: ${newLabel}`;
 
       const nodeRe = /^(start|end|step|decision)\s+(\w+)\s+in\s+(\w+)/i;
       const lines = dslEl.value.split('\n');
-      let insertAt = -1;
-      lines.forEach((line, idx)=>{ if(nodeRe.test(line.trim())) insertAt = idx; });
-      if(insertAt === -1){
-        lines.forEach((line, idx)=>{ if(LANE_LINE_RE.test(line.trim())) insertAt = idx; });
+
+      function lineIndexOf(id){
+        for(let idx=0; idx<lines.length; idx++){
+          const m = lines[idx].trim().match(NODE_LINE_RE);
+          if(m && m[2] === id) return idx;
+        }
+        return -1;
       }
-      lines.splice(insertAt+1, 0, newLine);
+
+      let insertAt = -1;
+      if(beforeId){
+        const idx = lineIndexOf(beforeId);
+        if(idx !== -1) insertAt = idx;
+      }
+      if(insertAt === -1 && afterId){
+        const idx = lineIndexOf(afterId);
+        if(idx !== -1) insertAt = idx + 1;
+      }
+      if(insertAt === -1){
+        let lastNodeLine = -1;
+        lines.forEach((line, idx)=>{ if(nodeRe.test(line.trim())) lastNodeLine = idx; });
+        if(lastNodeLine !== -1){
+          insertAt = lastNodeLine + 1;
+        } else {
+          let lastLaneLine = -1;
+          lines.forEach((line, idx)=>{ if(LANE_LINE_RE.test(line.trim())) lastLaneLine = idx; });
+          insertAt = lastLaneLine + 1;
+        }
+      }
+
+      lines.splice(insertAt, 0, newLine);
       dslEl.value = lines.join('\n');
       doRender();
 
@@ -513,6 +609,47 @@ note over s2: verify against warehouse system`;
         dslEl.focus();
         dslEl.setSelectionRange(labelStart, labelStart + newLabel.length);
       }
+    }
+
+    // ---------------- add-to-lane type picker ----------------
+
+    const NODE_TYPE_CHOICES = [
+      {kind:'step', label:'Step'},
+      {kind:'decision', label:'Decision'},
+      {kind:'start', label:'Start'},
+      {kind:'end', label:'End'}
+    ];
+
+    // Small inline previews matching each kind's real shape (see
+    // nodeShapeSvg above) so the picker reads as "which shape", not just
+    // a word list.
+    function nodeTypeIcon(kind){
+      if(kind === 'decision'){
+        return `<svg width="34" height="20" viewBox="0 0 34 20">
+            <polygon points="17,2 32,10 17,18 2,10" fill="#F7F8FA" stroke="#2F6FED" stroke-width="1.4"/>
+          </svg>`;
+      }
+      if(kind === 'start' || kind === 'end'){
+        const color = kind === 'end' ? '#D0453A' : '#2F6FED';
+        const bg = kind === 'end' ? '#FDEDEC' : '#EAF1FE';
+        return `<svg width="34" height="20" viewBox="0 0 34 20">
+            <rect x="2" y="3" width="30" height="14" rx="7" fill="${bg}" stroke="${color}" stroke-width="1.4"/>
+          </svg>`;
+      }
+      return `<svg width="34" height="20" viewBox="0 0 34 20">
+          <rect x="2" y="2" width="30" height="16" rx="3" fill="#F7F8FA" stroke="#2F6FED" stroke-width="1.4"/>
+        </svg>`;
+    }
+
+    function showNodeTypePicker(laneName, beforeId, afterId, clientX, clientY){
+      showPopupMenu({
+        labelText: `Add to ${laneName}`,
+        clientX, clientY,
+        items: NODE_TYPE_CHOICES.map(t=>({
+          html: `${nodeTypeIcon(t.kind)}<span>${t.label}</span>`,
+          onChoose: ()=> insertNodeInLane(laneName, t.kind, beforeId, afterId)
+        }))
+      });
     }
 
     function renameStep(id, newLabel){
@@ -627,27 +764,6 @@ note over s2: verify against warehouse system`;
       });
     }
 
-    function startConnLabelEdit(g){
-      const lineIndex = parseInt(g.getAttribute('data-line'), 10);
-      const rawLines = dslEl.value.split('\n');
-      const rawLine = rawLines[lineIndex] || '';
-      const leading = rawLine.match(/^\s*/)[0];
-      const m = rawLine.trim().match(CONN_LINE_RE);
-      if(!m) return;
-      const [, from, arrow, to, currentLabel] = m;
-      openInlineEditor({
-        anchorRect: g.getBoundingClientRect(),
-        initialValue: currentLabel || '',
-        minWidth: 90,
-        onCommit: (val)=>{
-          const lines = dslEl.value.split('\n');
-          lines[lineIndex] = val ? `${leading}${from}${arrow}${to}: ${val}` : `${leading}${from}${arrow}${to}`;
-          dslEl.value = lines.join('\n');
-          doRender();
-        }
-      });
-    }
-
     function startNoteEdit(g){
       const lineIndex = parseInt(g.getAttribute('data-line'), 10);
       const rawLines = dslEl.value.split('\n');
@@ -678,6 +794,14 @@ note over s2: verify against warehouse system`;
       doRender();
     }
 
+    function removeConnector(lineIndex){
+      const lines = dslEl.value.split('\n');
+      if(lineIndex < 0 || lineIndex >= lines.length) return;
+      lines.splice(lineIndex, 1);
+      dslEl.value = lines.join('\n');
+      doRender();
+    }
+
     // ---------------- attach ----------------
 
     function attach(svg){
@@ -689,6 +813,8 @@ note over s2: verify against warehouse system`;
         if(nodeG){ removeStep(nodeG.getAttribute('data-node')); return; }
         const laneG = btn.closest('[data-lane]');
         if(laneG){ removeLane(laneG.getAttribute('data-lane')); return; }
+        const connBadge = btn.closest('.connector-hit-badge');
+        if(connBadge){ removeConnector(parseInt(connBadge.getAttribute('data-line'), 10)); return; }
         const editG = btn.closest('.editable-label');
         if(editG && editG.getAttribute('data-edit') === 'note'){
           removeNote(parseInt(editG.getAttribute('data-line'), 10));
@@ -698,14 +824,42 @@ note over s2: verify against warehouse system`;
       attachAddHandlers(svg, insertLaneAt);
 
       attachEditableHandlers(svg, {
-        conn: startConnLabelEdit,
         note: startNoteEdit,
         lane: startLaneRename
       });
 
+      // A connector has no stable id to route through the shared node/lane
+      // selection system (only a line index, which shifts on unrelated
+      // edits) -- so its "selected, show delete" state is kept local to
+      // this render: click shows its badge (data-line keyed, since the
+      // badge is rendered separately from the line -- see
+      // connectorBadgeParts above), clicking a different connector or the
+      // background hides it again.
+      function clearConnectorSelection(){
+        svg.querySelectorAll('.connector-hit.is-selected').forEach(el=> el.classList.remove('is-selected'));
+        svg.querySelectorAll('.connector-hit-badge.is-shown').forEach(el=> el.classList.remove('is-shown'));
+      }
+      svg.querySelectorAll('.connector-hit').forEach(g=>{
+        g.addEventListener('click', (e)=>{
+          e.stopPropagation();
+          const already = g.classList.contains('is-selected');
+          clearConnectorSelection();
+          if(!already){
+            g.classList.add('is-selected');
+            const badge = svg.querySelector(`.connector-hit-badge[data-line="${g.getAttribute('data-line')}"]`);
+            if(badge) badge.classList.add('is-shown');
+          }
+        });
+      });
+      const bgEl = svg.querySelector('.diagram-bg');
+      if(bgEl) bgEl.addEventListener('click', clearConnectorSelection);
+
       svg.querySelectorAll('.step-hitzone').forEach(g=>{
-        g.addEventListener('click', ()=>{
-          appendStepToLane(g.getAttribute('data-lane-append'));
+        g.addEventListener('click', (e)=>{
+          const laneName = g.getAttribute('data-lane-append');
+          const beforeId = g.getAttribute('data-before-id') || null;
+          const afterId = g.getAttribute('data-after-id') || null;
+          showNodeTypePicker(laneName, beforeId, afterId, e.clientX, e.clientY);
         });
       });
 
@@ -762,10 +916,11 @@ note over s2: verify against warehouse system`;
         <div>Drag any step left/right on the canvas to reposition it — use <b>Reset layout</b> to undo.</div>
         <div>Hover the gap between (or beside) lanes and click the red <b>+</b> to insert a new lane there.</div>
         <div>Hover a lane and click the red <b>×</b> in its corner to remove it — its steps and connectors go with it.</div>
-        <div>Hover the right edge of a lane's row and click the blue <b>+</b> to append a new step to that lane.</div>
+        <div>Hover a gap before, between, or after a lane's items and click the blue <b>+</b> to add a step, decision, start, or end right there.</div>
         <div>Hover a step, press the blue <b>+</b> handle and drag to another step — it snaps to the nearest step. Release and pick the connector type.</div>
-        <div>Double-click any connector's label, a step, a lane, or a note to edit its text right there — Enter to save, Esc to cancel.</div>
-        <div>Hover a step or a note and click the red <b>×</b> in its corner to remove it — its connectors go with it.</div>`,
+        <div>Double-click a step, a lane, or a note to edit its text right there — Enter to save, Esc to cancel. A connector's label is edited by changing it in the script.</div>
+        <div>Hover a step or a note and click the red <b>×</b> in its corner to remove it — its connectors go with it.</div>
+        <div>Click a connector to reveal a red <b>×</b> next to it and remove just that connector.</div>`,
       parseAndLayout,
       insertPrimaryAt: insertLaneAt,
       attach,
@@ -774,8 +929,10 @@ note over s2: verify against warehouse system`;
       getNodeKind: (id)=>{ const n = lastOrder.find(x=>x.id===id); return n ? n.kind : null; },
       renameNode: renameStep,
       setNodeShape: setNodeKind,
+      removeNode: removeStep,
       getLaneLabel: (name)=>{ const l = lastLanes.find(x=>x.name===name); return l ? l.label : undefined; },
-      renameLane
+      renameLane,
+      removeLane
     };
   })();
 
