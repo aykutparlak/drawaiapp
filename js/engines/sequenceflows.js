@@ -78,14 +78,6 @@ system MktApps as Marketing Applications`;
     // render loop in parseAndLayout.
     function posXKey(name){ return name + ':px'; }
     function posYKey(name){ return name + ':py'; }
-    // customLayout keys for a system's own "add process" dashed-+ button,
-    // once IT has been dragged at least once -- same pixel-offset-from-
-    // the-box's-own-top-left convention as posXKey/posYKey, but keyed by
-    // SYSTEM name (a system has exactly one of these). Distinct suffix
-    // from deltaKey/posXKey/posYKey means no collision even if a system
-    // and a process happen to share the same base name.
-    function addBtnXKey(systemName){ return systemName + ':bx'; }
-    function addBtnYKey(systemName){ return systemName + ':by'; }
     let lastGridSteps = 3; // gridSteps from the most recent parseAndLayout call -- read by the resize drag below, which runs between renders
     function currentGridPx(){ return GRID_UNIT_PX * (lastGridSteps || 3); }
 
@@ -97,7 +89,6 @@ system MktApps as Marketing Applications`;
     // which system box the pointer is over and which chip it's nearest to.
     let lastSystemBoxes = []; // [{name, top, bottom}] -- each system's VISIBLE rect bounds (post content-pad inset)
     let lastChipGeom = [];    // [{name, systemName, x, y, w, h}] -- one per process chip, in flow order
-    let lastAddBtnGeom = [];  // [{systemName, cx, cy}] -- one per system's "add process" button, wherever it actually rendered (flow-default or free)
     let lastBoxLeft = 30, lastBoxRight = 290;
 
     const systemRe = /^system\s+(\w+)(?:\s+as\s+(.+))?$/i;
@@ -147,7 +138,6 @@ system MktApps as Marketing Applications`;
         lastProcesses = [];
         lastSystemBoxes = [];
         lastChipGeom = [];
-        lastAddBtnGeom = [];
         throw new Error(EMPTY_MESSAGE);
       }
 
@@ -277,7 +267,6 @@ system MktApps as Marketing Applications`;
       const allResizeHandles = [];
       const systemBoxRects = []; // fed into lastSystemBoxes at the end -- read by the process-chip drag gesture
       const chipGeomAccum = [];  // fed into lastChipGeom at the end -- ditto
-      const addBtnGeomAccum = []; // fed into lastAddBtnGeom at the end -- ditto, for the add-process button's own free-drag gesture
       const systemBoxes = order.map((p, idx)=>{
         const naturalTop = idx === 0 ? topBound : (order[idx-1].y + p.y) / 2;
         const naturalBottom = idx === order.length-1 ? bottomBound : (p.y + order[idx+1].y) / 2;
@@ -372,33 +361,22 @@ system MktApps as Marketing Applications`;
               </g>
             </g>`);
         });
-        // The "add process" button itself is draggable too (see the
-        // free-drag gesture below) -- once dragged, it carries its own
-        // free position (addBtnXKey/addBtnYKey, same box-relative pixel
-        // convention as a chip's posXKey/posYKey) and renders exactly
-        // there instead of its flow-default trailing spot. Clicking it
-        // (rather than dragging it) then drops the new process AT that
-        // free spot instead of appending it into the flow -- see
-        // insertProcessFor's freePos parameter.
-        const freeBX = customLayout[addBtnXKey(p.name)];
-        const freeBY = customLayout[addBtnYKey(p.name)];
-        let addProcessCx, addProcessCy;
-        if(isFinite(freeBX) && isFinite(freeBY)){
-          addProcessCx = boxLeft + Math.max(19, Math.min(BOX_W - 19, freeBX));
-          addProcessCy = visualTop + Math.max(19, freeBY);
-        } else {
-          const ADD_PROCESS_BTN_W = 26;
-          if(chipX + ADD_PROCESS_BTN_W > chipAreaRight && chipX > chipAreaLeft){ chipX = chipAreaLeft; chipRowY += chipH + chipGapY; }
-          addProcessCx = chipX + 11; addProcessCy = chipRowY + chipH/2;
-        }
+        // A single red "+" right after the last chip (or where the first
+        // would go, if the system has none) -- click it to add a new
+        // process to this system. Not draggable -- just a plain button,
+        // same red as every other "add" control in this engine (the
+        // add-system hotzones below) and the remove badges, rather than
+        // the system's own tinted color, so it reads as an action rather
+        // than part of the box's own content.
+        const ADD_PROCESS_BTN_W = 26;
+        if(chipX + ADD_PROCESS_BTN_W > chipAreaRight && chipX > chipAreaLeft){ chipX = chipAreaLeft; chipRowY += chipH + chipGapY; }
+        const addProcessCx = chipX + 11, addProcessCy = chipRowY + chipH/2;
         maxContentBottom = Math.max(maxContentBottom, addProcessCy + 20);
-        addBtnGeomAccum.push({systemName:p.name, cx:addProcessCx, cy:addProcessCy});
         allProcessChips.push(`
           <g class="add-process-btn" data-add-process="${esc(p.name)}" style="cursor:pointer;">
-            <circle cx="${addProcessCx}" cy="${addProcessCy}" r="11" fill="${p.colorHex}" fill-opacity="0.15"
-                    stroke="${p.colorHex}" stroke-width="1.3" stroke-dasharray="3,2"/>
+            <circle cx="${addProcessCx}" cy="${addProcessCy}" r="11" fill="#D0453A"/>
             <text x="${addProcessCx}" y="${addProcessCy+4}" text-anchor="middle" font-family="IBM Plex Mono, monospace"
-                  font-size="13" font-weight="700" fill="${p.colorHex}" style="pointer-events:none;">+</text>
+                  font-size="13" font-weight="700" fill="#FFFFFF" style="pointer-events:none;">+</text>
           </g>`);
 
         // No data-x -- a system box is selectable/renamable (dblclick
@@ -440,7 +418,6 @@ system MktApps as Marketing Applications`;
       lastProcesses = processes.map(pr=>({name:pr.name, label:pr.label, systemName:pr.systemName}));
       lastSystemBoxes = systemBoxRects;
       lastChipGeom = chipGeomAccum;
-      lastAddBtnGeom = addBtnGeomAccum;
       lastBoxLeft = boxLeft;
       lastBoxRight = boxRight;
 
@@ -534,8 +511,10 @@ system MktApps as Marketing Applications`;
 
       delete customLayout[name]; // legacy cleanup -- headers no longer write a position override themselves, but a file saved before that change might still carry a stale one
       delete customLayout[deltaKey(name)];
-      delete customLayout[addBtnXKey(name)];
-      delete customLayout[addBtnYKey(name)];
+      // legacy cleanup -- a brief since-reverted version let the "add
+      // process" button itself carry a free position under these keys
+      delete customLayout[name + ':bx'];
+      delete customLayout[name + ':by'];
       // legacy cleanup -- an even older version stored two independent edge overrides instead of one delta
       delete customLayout[name + ':bl'];
       delete customLayout[name + ':br'];
@@ -569,15 +548,7 @@ system MktApps as Marketing Applications`;
     // yet), never just appended to the end of the file -- keeps every
     // system's processes textually grouped under it, same as how a
     // person would naturally write this by hand.
-    //
-    // freePos (optional) {x,y} -- box-relative pixel top-left (same
-    // convention as posXKey/posYKey) to drop the new chip at immediately,
-    // instead of letting it fall into the automatic flow. Passed when the
-    // system's "add process" button has itself been dragged off its
-    // default spot (see onAddBtnDragEnd) -- the new chip appears right
-    // where that button was clicked, and the button then hops just past
-    // it so the next click doesn't stamp another chip on the same spot.
-    function insertProcessFor(systemName, freePos){
+    function insertProcessFor(systemName){
       const taken = allDeclaredNames();
       let n = 1;
       while(taken.includes('Proc'+n)) n++;
@@ -598,24 +569,6 @@ system MktApps as Marketing Applications`;
       lines.splice(insertAfter + 1, 0, newLine);
       const newText = lines.join('\n');
       dslEl.value = newText;
-
-      if(freePos){
-        customLayout[posXKey(newName)] = freePos.x;
-        customLayout[posYKey(newName)] = freePos.y;
-        // Advance the button past the chip just placed -- grid-snapped,
-        // wrapping to a new row if it would run past the box's own right
-        // edge, the same spirit as the automatic flow's own wrap.
-        const grid = currentGridPx();
-        const chipH = 2 * grid;
-        const w = Math.max(4 * grid, newName.length * 6.5 + 24);
-        const boxW = lastBoxRight - lastBoxLeft;
-        let nextBX = freePos.x + w + 8 + 11; // +11: land on the button's own center, not its left edge
-        let nextBY = freePos.y + chipH/2;
-        if(nextBX > boxW - 19){ nextBX = 19; nextBY = freePos.y + chipH + 8 + chipH/2; }
-        customLayout[addBtnXKey(systemName)] = Math.round(nextBX / grid) * grid;
-        customLayout[addBtnYKey(systemName)] = Math.round(nextBY / grid) * grid;
-      }
-
       doRender();
 
       const pos = newText.indexOf(newName);
@@ -943,104 +896,6 @@ system MktApps as Marketing Applications`;
       window.removeEventListener('touchend', onProcessDragEnd);
     }
 
-    // ---------------- drag a system's "add process" button, or click it to add one ----------------
-    // Same mousedown-with-a-threshold pattern as the process-chip drag
-    // above: a plain click (no real movement) still adds a process the
-    // way it always has -- appended into the flow -- UNLESS this button
-    // has itself previously been dragged to a custom spot, in which case
-    // a plain click drops the new process right there instead (see
-    // insertProcessFor's freePos). A real drag only ever repositions the
-    // button within its OWN system's box (never into another system --
-    // unlike a process chip, an "add process" button is intrinsically
-    // tied to one system).
-
-    let addBtnDragState = null;
-
-    function onAddBtnDragStart(e){
-      if(e.type === 'mousedown' && e.button !== 0) return;
-      e.stopPropagation();
-      const g = e.currentTarget;
-      const systemName = g.getAttribute('data-add-process');
-      const geom = lastAddBtnGeom.find(b=>b.systemName === systemName) || {cx:0, cy:0};
-      const svg = holder.querySelector('svg');
-      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-      addBtnDragState = {
-        systemName, g, geom,
-        startClientX: clientX, startClientY: clientY,
-        startSvgX: svgClientX(svg, clientX), startSvgY: svgClientY(svg, clientY),
-        moved: false, target: null
-      };
-      window.addEventListener('mousemove', onAddBtnDragMove);
-      window.addEventListener('touchmove', onAddBtnDragMove, {passive:false});
-      window.addEventListener('mouseup', onAddBtnDragEnd);
-      window.addEventListener('touchend', onAddBtnDragEnd);
-    }
-
-    function onAddBtnDragMove(e){
-      if(!addBtnDragState) return;
-      if(e.touches) e.preventDefault();
-      const svg = holder.querySelector('svg');
-      if(!svg) return;
-      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-
-      if(!addBtnDragState.moved){
-        if(Math.hypot(clientX - addBtnDragState.startClientX, clientY - addBtnDragState.startClientY) < DRAG_THRESHOLD) return;
-        addBtnDragState.moved = true;
-        addBtnDragState.g.style.opacity = '0.4';
-      }
-
-      const svgX = svgClientX(svg, clientX);
-      const svgY = svgClientY(svg, clientY);
-      const cx = addBtnDragState.geom.cx + (svgX - addBtnDragState.startSvgX);
-      const cy = addBtnDragState.geom.cy + (svgY - addBtnDragState.startSvgY);
-      const sb = lastSystemBoxes.find(b=>b.name === addBtnDragState.systemName);
-      const grid = currentGridPx();
-      const relX = Math.max(19, Math.min((lastBoxRight - lastBoxLeft) - 19, Math.round((cx - lastBoxLeft) / grid) * grid));
-      const relY = sb ? Math.max(19, Math.round((cy - sb.top) / grid) * grid) : Math.max(19, cy);
-      addBtnDragState.target = {relX, relY};
-
-      const newCx = lastBoxLeft + relX, newCy = sb ? sb.top + relY : cy;
-      addBtnDragState.g.setAttribute('transform', `translate(${newCx - addBtnDragState.geom.cx}, ${newCy - addBtnDragState.geom.cy})`);
-    }
-
-    function onAddBtnDragEnd(){
-      if(!addBtnDragState) return;
-      const {systemName, g, geom, moved, target} = addBtnDragState;
-
-      if(moved){
-        g.style.opacity = '';
-        g.removeAttribute('transform');
-        if(target){
-          customLayout[addBtnXKey(systemName)] = target.relX;
-          customLayout[addBtnYKey(systemName)] = target.relY;
-        }
-        const swallow = (ev)=>{ ev.stopPropagation(); ev.preventDefault(); };
-        document.addEventListener('click', swallow, {capture:true, once:true});
-        setTimeout(()=> document.removeEventListener('click', swallow, {capture:true}), 0);
-        doRender();
-      } else {
-        const hasFreeBtn = isFinite(customLayout[addBtnXKey(systemName)]) && isFinite(customLayout[addBtnYKey(systemName)]);
-        if(hasFreeBtn){
-          const sb = lastSystemBoxes.find(b=>b.name === systemName);
-          const grid = currentGridPx();
-          const chipH = 2 * grid;
-          const relX = Math.max(8, geom.cx - lastBoxLeft - 8);
-          const relY = sb ? Math.max(0, geom.cy - sb.top - chipH/2) : 0;
-          insertProcessFor(systemName, {x: relX, y: relY});
-        } else {
-          insertProcessFor(systemName);
-        }
-      }
-
-      addBtnDragState = null;
-      window.removeEventListener('mousemove', onAddBtnDragMove);
-      window.removeEventListener('touchmove', onAddBtnDragMove);
-      window.removeEventListener('mouseup', onAddBtnDragEnd);
-      window.removeEventListener('touchend', onAddBtnDragEnd);
-    }
-
     // ---------------- attach ----------------
 
     function attach(svg){
@@ -1068,8 +923,10 @@ system MktApps as Marketing Applications`;
       });
 
       svg.querySelectorAll('.add-process-btn').forEach(g=>{
-        g.addEventListener('mousedown', onAddBtnDragStart);
-        g.addEventListener('touchstart', onAddBtnDragStart, {passive:false});
+        g.addEventListener('click', (e)=>{
+          e.stopPropagation();
+          insertProcessFor(g.getAttribute('data-add-process'));
+        });
       });
     }
 
@@ -1107,7 +964,7 @@ system MktApps as Marketing Applications`;
         <div>Hover just above the first box or just below the last one and click the red <b>+</b> to add a system there.</div>
         <div>Hover a system box and click the red <b>×</b> in its corner to remove it — every process inside it goes with it.</div>
         <div>Double-click a system box to rename it in place — Enter to save, Esc to cancel.</div>
-        <div>Click the dashed <b>+</b> inside a system box to add a process to it — processes flow left to right, wrapping to a new line inside the box. Drag that <b>+</b> itself anywhere in the box first, and the next process you add with it drops right there instead.</div>
+        <div>Click the red <b>+</b> inside a system box to add a process to it — processes flow left to right, wrapping to a new line inside the box.</div>
         <div>Double-click a process chip to rename it, or click the red <b>×</b> on it to remove just that process.</div>
         <div>Drag a process chip anywhere inside its system box to place it freely, or drop it into a different system box to move it there.</div>`,
       parseAndLayout,
